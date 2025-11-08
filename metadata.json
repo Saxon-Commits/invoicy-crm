@@ -1,0 +1,5 @@
+{
+  "name": "InvoicyCRM",
+  "description": "A small SaaS application for managing customer relationships (CRM), generating professional invoices and quotes with multiple templates, and viewing them on a central dashboard.",
+  "requestFramePermissions": []
+}
