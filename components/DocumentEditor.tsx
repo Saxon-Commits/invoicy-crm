@@ -199,9 +199,13 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
             alert("Please select a customer.");
             return;
         }
-        addDocument({ ...doc, doc_number: '' } as NewDocumentData); // Pass an empty doc_number to ensure App.tsx generates it
-        clearAutoSavedDraft(AUTO_SAVE_KEY);
-        navigate('/files'); // Navigate after saving
+        if (isEditMode) {
+            updateDocument(doc as Document);
+        } else {
+            addDocument(doc as NewDocumentData);
+            clearAutoSavedDraft(AUTO_SAVE_KEY);
+        }
+        navigate('/files');
     };
     
     const handleDownloadPdf = () => {
