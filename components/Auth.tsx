@@ -32,7 +32,12 @@ const AuthPage: React.FC = () => {
         setMessage('Check your email for the confirmation link!');
       }
     } catch (error: unknown) {
-      setError(error.error_description || error.message);
+      if (error && typeof error === 'object' && ('message' in error)) {
+        // The error object from Supabase might have error_description
+        const description = 'error_description' in error ? String(error.error_description) : null;
+        const message = String(error.message);
+        setError(description || message);
+      }
     } finally {
       setLoading(false);
     }
