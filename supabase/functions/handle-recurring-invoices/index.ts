@@ -75,14 +75,14 @@ serve(async (req) => {
           }
 
           // Destructure original doc, removing properties we will replace.
-          const { id, doc_number, created_at, customer, ...docData } = doc;
+          const { id, doc_number, created_at, customer, activityLog, recurrence, ...docData } = doc; // Keep only this line
 
           const newInvoice = {
             ...docData,
             issue_date: today.toISOString().split('T')[0],
             due_date: newDueDate.toISOString().split('T')[0],
             status: 'Draft', // Create as Draft first
-            source_doc_id: doc.id, // Link back to the original recurring invoice
+            source_doc_id: id, // Link back to the original recurring invoice using the destructured id
             doc_number: nextDocNumber,
           };
 
