@@ -14,10 +14,12 @@ interface CalendarProps {
     addEvent: (event: Omit<CalendarEvent, 'id' | 'created_at' | 'user_id'>) => void;
     updateEvent: (event: CalendarEvent) => void;
     deleteEvent: (eventId: string) => void;
+    addTask: (task: Omit<Task, 'id' | 'completed' | 'created_at' | 'user_id'>) => void;
     updateTask: (task: Task) => void;
+    deleteTask: (taskId: string) => void;
 }
 
-const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocument, addEvent, updateEvent, deleteEvent, updateTask }) => {
+const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocument, addEvent, updateEvent, deleteEvent, addTask, updateTask, deleteTask }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [view, setView] = useState<View>('month');
     const [isModalOpen, setIsModalOpen] = useState(false);
