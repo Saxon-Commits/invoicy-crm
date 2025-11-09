@@ -228,7 +228,7 @@ const App: React.FC = () => {
         const { customer, activityLog, ...docData } = doc;
 
         // New Sequential Numbering Logic
-        let nextDocNumber = docData.doc_number;
+        let nextDocNumber;
         if (doc.type === DocumentType.Invoice) {
             const userInvoices = documents.filter(d => d.user_id === session.user.id && d.type === DocumentType.Invoice);
             let maxNumber = 10000;
@@ -237,6 +237,8 @@ const App: React.FC = () => {
                 if (!isNaN(num) && num > maxNumber) maxNumber = num;
             });
             nextDocNumber = String(maxNumber + 1);
+        } else {
+            nextDocNumber = `${doc.type.toUpperCase().slice(0,3)}-${Date.now().toString().slice(-6)}`;
         }
         
         const newDocForDb = {
