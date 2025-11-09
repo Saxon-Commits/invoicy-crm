@@ -17,17 +17,23 @@ const AuthPage: React.FC = () => {
 
     try {
       if (isLoginView) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
         if (error) throw error;
       } else {
-        // Fix: Added redirectTo option to the signUp call.
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: window.location.href, // This is the magic line!
+            emailRedirectTo: `${window.location.origin}/`,
           },
         });
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+          setError('User already registered. Please sign in.');
+          return;
+        }
         if (error) throw error;
         setMessage('Check your email for the confirmation link!');
       }
