@@ -105,11 +105,11 @@ const Files: React.FC<FilesProps> = ({ documents, businessLetters, editDocument,
     }, [allFiles, searchTerm, typeFilter, showArchived]);
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            setSelectedItems(new Set(filteredFiles.map(f => f.id)));
-        } else {
-            setSelectedItems(new Set());
-        }
+        setSelectedItems(prev => {
+            const newSet = new Set(prev);
+            filteredFiles.forEach(f => e.target.checked ? newSet.add(f.id) : newSet.delete(f.id));
+            return newSet;
+        });
     };
 
     const handleSelectItem = (id: string) => {
@@ -178,10 +178,10 @@ const Files: React.FC<FilesProps> = ({ documents, businessLetters, editDocument,
             const letterIdsToDelete = Array.from(selectedItems).filter(id => allFiles.find(f => f.id === id)?.fileType === 'BusinessLetter');
 
             const deletePromises = [];
-            if (docIdsToDelete.length > 0) deletePromises.push(bulkDeleteDocuments(docIdsToDelete));
-            if (letterIdsToDelete.length > 0) deletePromises.push(bulkDeleteBusinessLetters(letterIdsToDelete));
+            if (docIdsToDelete.length > 0) deletePromises.push(() => bulkDeleteDocuments(docIdsToDelete));
+            if (letterIdsToDelete.length > 0) deletePromises.push(() => bulkDeleteBusinessLetters(letterIdsToDelete));
 
-            await Promise.all(deletePromises);
+            await Promise.all(deletePromises.map(p => p()));
             setSelectedItems(new Set());
         }
     };
