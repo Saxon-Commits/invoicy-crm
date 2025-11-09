@@ -251,7 +251,16 @@ const App: React.FC = () => {
         const { data, error } = await supabase.from('documents').insert(newDocForDb).select('*, customer:customers(*)').single();
         
         if (data) {
-            setDocuments(prev => [data as Document, ...prev]);
+            const newDoc = data as Document;
+            setDocuments(prev => [newDoc, ...prev]);
+            
+            // After adding the document, update any linked expenses to 'billed'
+            const expenseIdsToUpdate = newDoc.items.map(item => item.sourceExpenseId).filter(Boolean) as string[];
+            if (expenseIdsToUpdate.length > 0) {
+                const { error: expenseError } = await supabase.from('expenses').update({ status: 'billed' }).in('id', expenseIdsToUpdate);
+                if (expenseError) console.error("Error updating expenses to billed:", expenseError);
+                else setExpenses(prev => prev.map(e => expenseIdsToUpdate.includes(e.id) ? { ...e, status: 'billed' } : e));
+            }
         } else if (error) {
             console.error("Error adding document:", error);
         }
@@ -260,8 +269,20 @@ const App: React.FC = () => {
     const updateDocument = async (updatedDoc: Document) => { 
         const { customer, ...docData } = updatedDoc; // Separate customer from the rest of the data
         const { data, error } = await supabase.from('documents').update(docData).eq('id', updatedDoc.id).select('*, customer:customers(*)').single();
-        if (data) setDocuments(prev => prev.map(d => d.id === data.id ? data as Document : d));
-        else if (error) console.error("Error updating document:", error);
+        if (data) {
+            const newDoc = data as Document;
+            setDocuments(prev => prev.map(d => d.id === newDoc.id ? newDoc : d));
+            
+            // After updating the document, update any linked expenses to 'billed'
+            const expenseIdsToUpdate = newDoc.items.map(item => item.sourceExpenseId).filter(Boolean) as string[];
+            if (expenseIdsToUpdate.length > 0) {
+                const { error: expenseError } = await supabase.from('expenses').update({ status: 'billed' }).in('id', expenseIdsToUpdate);
+                if (expenseError) console.error("Error updating expenses to billed:", expenseError);
+                else setExpenses(prev => prev.map(e => expenseIdsToUpdate.includes(e.id) ? { ...e, status: 'billed' } : e));
+            }
+        } else if (error) {
+            console.error("Error updating document:", error);
+        }
     };
 
     const deleteDocument = async (docId: string) => {
