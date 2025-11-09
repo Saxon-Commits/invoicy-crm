@@ -1,9 +1,11 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
-import { Document, CompanyInfo, DocumentItem } from '../types';
+import { Link } from 'react-router-dom';
+import { Document, CompanyInfo, DocumentItem, DocumentType, Profile } from '../types';
 
 interface PreviewProps {
   document: Document;
   companyInfo: CompanyInfo;
+  profile: Profile | null;
 }
 
 interface ExtendedPreviewProps extends PreviewProps {
@@ -18,6 +20,7 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-slate-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col">
@@ -93,6 +96,17 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-8">
             <div className="w-full sm:w-1/2 space-y-2 text-slate-600">
               <div className="flex justify-between">
@@ -128,6 +142,7 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-gray-900 p-4 sm:p-6 lg:p-10 font-serif h-full flex flex-col">
@@ -199,6 +214,17 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-4">
             <table className="w-full sm:w-1/2 md:w-1/3 text-gray-800">
               <tbody>
@@ -238,6 +264,7 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-slate-900 text-white p-4 sm:p-6 lg:p-10 font-mono relative overflow-hidden h-full flex flex-col">
@@ -308,6 +335,17 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto relative z-10">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-8">
             <div className="w-full sm:w-3/5 md:w-2/5 space-y-2 text-lg">
               <div className="flex justify-between">
@@ -343,6 +381,7 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-light font-sans h-full flex flex-col">
@@ -425,6 +464,17 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-8">
             <div className="w-full sm:w-2/5 space-y-2 text-gray-600">
               <div className="flex justify-between">
@@ -458,6 +508,7 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-gray-900 font-sans h-full flex flex-col">
@@ -536,6 +587,17 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto px-4 sm:px-6 lg:px-10">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-8">
             <div className="w-full sm:w-1/2 lg:w-2/5 py-4 text-gray-800">
               <div className="flex justify-between">
@@ -569,6 +631,7 @@ const TemplateRetro: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-[#fdf6e3] text-[#586e75] p-4 sm:p-6 lg:p-10 font-mono h-full flex flex-col">
@@ -630,6 +693,17 @@ const TemplateRetro: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-4">
             <div className="w-full sm:w-1/2 text-sm">
               <div className="flex justify-between p-1 border-t border-dashed border-[#93a1a1]">
@@ -663,6 +737,7 @@ const TemplateCorporate: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col">
@@ -733,6 +808,17 @@ const TemplateCorporate: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-8">
             <div className="w-full sm:w-1/2 space-y-2 text-gray-700">
               <div className="flex justify-between">
@@ -767,6 +853,7 @@ const TemplateElegant: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-serif h-full flex flex-col">
@@ -833,6 +920,17 @@ const TemplateElegant: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-8">
             <div className="w-full sm:w-1/2 space-y-2 text-gray-700">
               <div className="flex justify-between">
@@ -861,6 +959,7 @@ const TemplateFriendly: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col relative overflow-hidden">
@@ -932,6 +1031,17 @@ const TemplateFriendly: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto relative z-10">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-4">
             <div className="w-full sm:w-1/2 p-6 bg-green-50 rounded-xl">
               <div className="flex justify-between text-gray-700">
@@ -960,6 +1070,7 @@ const TemplateTechnical: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-mono h-full flex flex-col text-sm">
@@ -1014,6 +1125,17 @@ const TemplateTechnical: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <div className="w-full border-t border-dashed border-gray-400 mt-8"></div>
           <section className="flex justify-end mt-4">
             <div className="w-full sm:w-1/2">
@@ -1046,6 +1168,7 @@ const TemplateEarthy: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-emerald-50 text-stone-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col">
@@ -1113,6 +1236,17 @@ const TemplateEarthy: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-8">
             <div className="w-full sm:w-1/2 space-y-2 text-stone-700">
               <div className="flex justify-between">
@@ -1141,6 +1275,7 @@ const TemplateSwiss: React.FC<ExtendedPreviewProps> = ({
   items,
   showHeader,
   showFooter,
+  profile,
 }) => {
   return (
     <div className="bg-white text-black p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col">
@@ -1206,6 +1341,17 @@ const TemplateSwiss: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
+          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+            <div className="my-6 text-center">
+              <Link
+                to={`/pay/${document.id}`}
+                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+              >
+                Pay with Card
+              </Link>
+            </div>
+          )}
+
           <section className="flex justify-end mt-8">
             <div className="w-full sm:w-1/2 space-y-2 text-gray-800">
               <div className="flex justify-between">
@@ -1290,7 +1436,7 @@ const ScaledPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-const DocumentPreview: React.FC<PreviewProps> = ({ document, companyInfo }) => {
+const DocumentPreview: React.FC<PreviewProps> = ({ document, companyInfo, profile }) => {
   // Fix: Changed templateId to template_id
   const SelectedTemplate = templates[document.template_id] || TemplateModern;
 
@@ -1313,6 +1459,7 @@ const DocumentPreview: React.FC<PreviewProps> = ({ document, companyInfo }) => {
         <SelectedTemplate
           document={document}
           companyInfo={companyInfo}
+          profile={profile}
           items={document.items}
           showHeader={true}
           showFooter={true}
@@ -1337,6 +1484,7 @@ const DocumentPreview: React.FC<PreviewProps> = ({ document, companyInfo }) => {
           <SelectedTemplate
             document={document}
             companyInfo={companyInfo}
+            profile={profile}
             items={chunk}
             showHeader={index === 0}
             showFooter={index === allChunks.length - 1}

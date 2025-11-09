@@ -502,7 +502,7 @@ const App: React.FC = () => {
                         <Route path="/projects" element={<Projects />} />
                         <Route path="/bills-and-expenses" element={<BillsAndExpenses expenses={expenses} customers={customers} openExpenseModal={openExpenseModal} />} />
                         <Route path="/calendar" element={<Calendar events={events} documents={documents} tasks={tasks} editDocument={handleEditDocument} addEvent={addEvent} updateEvent={updateEvent} deleteEvent={deleteEvent} addTask={addTask} updateTask={updateTask} deleteTask={deleteTask} />} />
-                        <Route path="/settings" element={<Settings companyInfo={companyInfo} setCompanyInfo={handleSetCompanyInfo} theme={theme} setTheme={handleSetTheme} emailTemplates={emailTemplates} addEmailTemplate={addEmailTemplate} updateEmailTemplate={updateEmailTemplate} deleteEmailTemplate={deleteEmailTemplate} />} />
+                        <Route path="/settings" element={<Settings companyInfo={companyInfo} setCompanyInfo={handleSetCompanyInfo} theme={theme} setTheme={handleSetTheme} emailTemplates={emailTemplates} addEmailTemplate={addEmailTemplate} updateEmailTemplate={updateEmailTemplate} deleteEmailTemplate={deleteEmailTemplate} profile={profile} />} />
                         <Route path="/productivity-hub" element={<ProductivityHub pages={productivityPages} customers={customers} documents={documents} updateDocument={updateDocument} addPage={addPage} updatePage={updatePage} deletePage={deletePage} openExpenseModal={openExpenseModal} />} />
                 </Routes>
                 </main>

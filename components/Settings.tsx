@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { CompanyInfo, EmailTemplate } from '../types';
+import { supabase } from '../supabaseClient';
 import { THEMES } from '../constants';
 
 interface TemplateModalProps {
@@ -266,6 +267,7 @@ interface SettingsProps {
   addEmailTemplate: (template: Omit<EmailTemplate, 'id' | 'created_at' | 'user_id'>) => void;
   updateEmailTemplate: (template: EmailTemplate) => void;
   deleteEmailTemplate: (templateId: string) => void;
+  profile: { stripe_account_id?: string, stripe_account_setup_complete?: boolean } | null;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -277,10 +279,12 @@ const Settings: React.FC<SettingsProps> = ({
   addEmailTemplate,
   updateEmailTemplate,
   deleteEmailTemplate,
+  profile,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   // Create a local state that is only updated when the props change,
   // allowing for immediate user feedback in the UI.
@@ -337,6 +341,24 @@ const Settings: React.FC<SettingsProps> = ({
       addEmailTemplate(templateData);
     }
   };
+
+  const handleStripeConnect = async () => {
+    setStripeLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-stripe-account-link');
+      if (error) throw error;
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Error connecting to Stripe:', error);
+      alert('Could not connect to Stripe. Please try again later.');
+    } finally {
+      setStripeLoading(false);
+    }
+  };
+
+  const isStripeConnected = profile?.stripe_account_id && profile?.stripe_account_setup_complete;
 
   return (
     <div className="space-y-8 h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
@@ -490,6 +512,28 @@ const Settings: React.FC<SettingsProps> = ({
                 <p className="text-slate-500 dark:text-zinc-400 text-center py-4">
                   No templates created yet.
                 </p>
+              )}
+            </div>
+          </div>
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm">
+            <h2 className="text-xl font-semibold mb-4 text-slate-800 dark:text-zinc-100">Payment Gateway</h2>
+            <div className="p-4 bg-slate-50 dark:bg-zinc-800 rounded-lg">
+              {isStripeConnected ? (
+                <div className="text-center">
+                  <p className="font-semibold text-green-600 dark:text-green-400">✓ Stripe Account Connected</p>
+                  <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">You can now accept payments on your invoices.</p>
+                  <button onClick={handleStripeConnect} disabled={stripeLoading} className="mt-4 w-full px-4 py-2 text-sm font-semibold rounded-lg bg-slate-200 dark:bg-zinc-700 hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors">
+                    {stripeLoading ? 'Processing...' : 'Manage Stripe Account'}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="font-semibold">Connect with Stripe</p>
+                  <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">Accept credit card payments for your invoices securely.</p>
+                  <button onClick={handleStripeConnect} disabled={stripeLoading} className="mt-4 w-full px-4 py-2 text-sm font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors">
+                    {stripeLoading ? 'Connecting...' : 'Connect with Stripe'}
+                  </button>
+                </div>
               )}
             </div>
           </div>
