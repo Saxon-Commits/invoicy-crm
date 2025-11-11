@@ -1,80 +1,57 @@
-// supabase/functions/handle-recurring-invoices/index.ts
+import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.22.0';
+import Stripe from 'https://esm.sh/stripe@12.5.0';
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-console.log('Hello from handle-recurring-invoices!');
+const stripe = new Stripe(Deno.env.get('STRIPE_API_KEY') as string, {
+  apiVersion: '2022-11-15',
+  httpClient: Stripe.createFetchHttpClient(),
+});
 
 serve(async (req) => {
   try {
-    // Create a Supabase client with the Auth context of the service role
-    const supabaseAdmin = createClient(
+    // Note: This function is called by the end-customer, so we use the anon key
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    // 1. Fetch all documents that are recurring
-    const { data: recurringDocs, error: fetchError } = await supabaseAdmin
+    const { documentId } = await req.json();
+
+    const { data: document, error: docError } = await supabase
       .from('documents')
-      .select('*')
-      .not('recurrence', 'is', null);
+      .select('total, user_id')
+      .eq('id', documentId)
+      .single();
 
-    if (fetchError) {
-      throw fetchError;
+    if (docError) throw docError;
+    if (!document) throw new Error('Document not found');
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('stripe_account_id')
+      .eq('id', document.user_id)
+      .single();
+
+    if (profileError) throw profileError;
+    if (!profile || !profile.stripe_account_id) {
+      throw new Error('Business has not connected a Stripe account.');
     }
 
-    const today = new Date();
-    const invoicesToCreate = [];
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(document.total * 100), // Amount in cents
+      currency: 'usd', // Or your desired currency
+      automatic_payment_methods: { enabled: true },
+      application_fee_amount: Math.round(document.total * 100 * 0.03), // 3% application fee
+      transfer_data: {
+        destination: profile.stripe_account_id,
+      },
+    });
 
-    // 2. Loop through them and check if a new one should be created
-    for (const doc of recurringDocs) {
-      const issueDate = new Date(doc.issue_date);
-
-      // Simple check: Does the day of the month match?
-      // A more robust solution would handle different frequencies (weekly, yearly)
-      // and check if an invoice for the current period has already been created.
-      if (doc.recurrence.frequency === 'monthly' && issueDate.getDate() === today.getDate()) {
-        // It's the right day of the month to create a new invoice.
-        // We'll create a copy of the original, but with new dates.
-        const newDueDate = new Date(today);
-        newDueDate.setDate(newDueDate.getDate() + 30); // Assuming net 30
-
-        const newInvoice = {
-          ...doc,
-          issue_date: today.toISOString().split('T')[0],
-          due_date: newDueDate.toISOString().split('T')[0],
-          status: 'Draft', // Create as Draft first
-          // Important: remove properties that should be unique for a new record
-          id: undefined,
-          doc_number: `INV-${Date.now().toString().slice(-6)}`,
-          created_at: undefined,
-        };
-        delete newInvoice.id;
-        delete newInvoice.created_at;
-
-        invoicesToCreate.push(newInvoice);
-      }
-    }
-
-    // 3. Insert the new invoices into the database
-    if (invoicesToCreate.length > 0) {
-      const { error: insertError } = await supabaseAdmin.from('documents').insert(invoicesToCreate);
-      if (insertError) {
-        throw insertError;
-      }
-    }
-
-    return new Response(JSON.stringify({ message: `Created ${invoicesToCreate.length} new invoices.` }), {
+    return new Response(JSON.stringify({ clientSecret: paymentIntent.client_secret }), {
       headers: { 'Content-Type': 'application/json' },
-      status: 200,
     });
   } catch (error) {
-    return new Response(String(error?.message ?? error), { status: 500 });
+    console.error(error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 });

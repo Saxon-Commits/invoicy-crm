@@ -15,6 +15,8 @@ export interface Profile {
   dark_mode?: boolean;
   color_theme?: string;
   common_tags?: string[];
+  stripe_account_id?: string;
+  stripe_account_setup_complete?: boolean;
 }
 
 export interface ActivityLog {

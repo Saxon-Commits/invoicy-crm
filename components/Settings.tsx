@@ -286,6 +286,24 @@ const Settings: React.FC<SettingsProps> = ({
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
 
+  // Check Stripe account status on component load
+  useEffect(() => {
+    const checkStripeStatus = async () => {
+      if (profile && profile.stripe_account_id && !profile.stripe_account_setup_complete) {
+        setStripeLoading(true);
+        try {
+          // This will trigger a profile data refresh via the subscription in App.tsx if the status changes
+          await supabase.functions.invoke('check-stripe-account-status');
+        } catch (error) {
+          console.error("Error checking Stripe status:", error);
+        } finally {
+          setStripeLoading(false);
+        }
+      }
+    };
+    checkStripeStatus();
+  }, [profile]);
+
   // Create a local state that is only updated when the props change,
   // allowing for immediate user feedback in the UI.
   const [localCompanyInfo, setLocalCompanyInfo] = useState(companyInfo);
