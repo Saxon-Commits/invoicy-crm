@@ -3,11 +3,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.22.0';
 import Stripe from 'https://esm.sh/stripe@12.5.0';
 import { corsHeaders } from '../_shared/cors.ts';
 
-const stripe = new Stripe(Deno.env.get('VITE_STRIPE_API_KEY') as string, {
+// FIX 1: Use 'STRIPE_API_KEY' (from your Supabase secrets screenshot)
+// NOT 'VITE_STRIPE_API_KEY'
+const stripe = new Stripe(Deno.env.get('STRIPE_API_KEY') as string, {
   apiVersion: '2022-11-15',
   httpClient: Stripe.createFetchHttpClient(),
 });
 
+// FIX 3: Get the SITE_URL from your environment secrets
+const SITE_URL = Deno.env.get('SITE_URL');
 
 serve(async (req) => {
   // This is needed for CORS preflight requests.
@@ -16,13 +20,17 @@ serve(async (req) => {
   }
 
   try {
+    // FIX 2: Use 'SUPABASE_URL' and 'SUPABASE_SERVICE_ROLE_KEY'
+    // (from your Supabase secrets screenshot)
     const supabase = createClient(
-      Deno.env.get('VITE_SUPABASE_URL') ?? '',
-      Deno.env.get('VITE_SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } },
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) throw new Error('User not found');
 
     const { data: profile, error: profileError } = await supabase
@@ -42,11 +50,15 @@ serve(async (req) => {
       });
       accountId = account.id;
 
-      await supabase.from('profiles').update({ stripe_account_id: accountId }).eq('id', user.id);
+      await supabase
+        .from('profiles')
+        .update({ stripe_account_id: accountId })
+        .eq('id', user.id);
     }
 
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
+      // FIX 3 (continued): Use the SITE_URL variable
       refresh_url: `${SITE_URL}/settings`,
       return_url: `${SITE_URL}/settings`,
       type: 'account_onboarding',
