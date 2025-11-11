@@ -1,3 +1,5 @@
+// supabase/functions/check-stripe-account-status/index.ts
+
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.22.0';
 import Stripe from 'https://esm.sh/stripe@12.5.0';
@@ -24,13 +26,17 @@ serve(async (req) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not found');
 
+    // --- ROBUST PROFILE HANDLING ---
+    // Use .maybeSingle() to prevent an error if the profile doesn't exist yet
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('stripe_account_id, stripe_account_setup_complete')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError) throw profileError;
+    
+    // If no profile or no account ID, it's definitely not set up.
     if (!profile || !profile.stripe_account_id) {
       return new Response(JSON.stringify({ setupComplete: false, message: 'No Stripe account ID found.' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }

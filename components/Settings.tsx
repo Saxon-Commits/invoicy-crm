@@ -3,6 +3,7 @@ import { CompanyInfo, EmailTemplate } from '../types';
 import { supabase } from '../supabaseClient';
 import { THEMES } from '../constants';
 
+// ... (TemplateModal component remains unchanged, no need to copy it here) ...
 interface TemplateModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -257,6 +258,8 @@ const TemplateModal: React.FC<TemplateModalProps> = ({
     </div>
   );
 };
+// ... (TemplateModal component remains unchanged, no need to copy it here) ...
+
 
 interface SettingsProps {
   companyInfo: CompanyInfo;
@@ -292,8 +295,16 @@ const Settings: React.FC<SettingsProps> = ({
       if (profile && profile.stripe_account_id && !profile.stripe_account_setup_complete) {
         setStripeLoading(true);
         try {
-          // This will trigger a profile data refresh via the subscription in App.tsx if the status changes
-          await supabase.functions.invoke('check-stripe-account-status');
+          // *** FIX 1: Get session to pass the auth token ***
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+          
+          // *** FIX 2: Pass the Authorization header ***
+          await supabase.functions.invoke('check-stripe-account-status', {
+             headers: {
+                'Authorization': `Bearer ${session.access_token}`
+             }
+          });
         } catch (error) {
           console.error("Error checking Stripe status:", error);
         } finally {
@@ -360,7 +371,7 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
- const handleStripeConnect = async () => {
+  const handleStripeConnect = async () => {
     setStripeLoading(true);
     try {
       // 1. Get the current user's session
@@ -369,11 +380,11 @@ const Settings: React.FC<SettingsProps> = ({
         throw new Error("User not logged in.");
       }
 
-      // 2. Call the function AND MANUALLY pass the Authorization header
-      //    This was the missing piece.
+      // 2. Call the function WITH the Authorization header
+      // *** FIX 3: Pass the Authorization header ***
       const { data, error } = await supabase.functions.invoke('create-stripe-account-link', {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`
+            'Authorization': `Bearer ${session.access_token}`
         }
       });
       

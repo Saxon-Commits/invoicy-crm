@@ -19,13 +19,6 @@ serve(async (req) => {
   }
 
   try {
-    //
-    // --- THIS IS THE FIX ---
-    //
-    // We must use the ANON key here so the client can
-    // correctly identify the user from the Authorization header.
-    // Using the SERVICE_ROLE_KEY conflicts with passing the user's auth.
-    //
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '', // Use ANON_KEY
@@ -37,16 +30,34 @@ serve(async (req) => {
     } = await supabase.auth.getUser();
     if (!user) throw new Error('User not found');
 
-    const { data: profile, error: profileError } = await supabase
+    // --- ROBUST PROFILE HANDLING ---
+    // 1. Try to get the profile, use .maybeSingle() to prevent error if it doesn't exist
+    const { data: profileData, error: profileSelectError } = await supabase
       .from('profiles')
       .select('stripe_account_id')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (profileError) throw profileError;
+    if (profileSelectError) throw profileSelectError;
 
-    let accountId = profile.stripe_account_id;
+    let accountId: string | null | undefined = profileData?.stripe_account_id;
 
+    // 2. If no profile exists, create one
+    if (!profileData) {
+      const { error: profileInsertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id, // Link to the auth.users id
+          company_name: user.email, // Use email as a default
+          subscription_tier: 'free',
+        })
+        .single();
+        
+      if (profileInsertError) throw profileInsertError;
+      // accountId remains null here, which is correct.
+    }
+
+    // 3. If no Stripe account ID, create one
     if (!accountId) {
       const account = await stripe.accounts.create({
         type: 'express',
@@ -54,16 +65,16 @@ serve(async (req) => {
       });
       accountId = account.id;
 
-      // This update will succeed because the user is authenticated
-      // and RLS policies should allow them to update their own profile.
+      // Update the profile (which we now know exists)
       await supabase
         .from('profiles')
         .update({ stripe_account_id: accountId })
         .eq('id', user.id);
     }
 
+    // 4. Create the account link
     const accountLink = await stripe.accountLinks.create({
-      account: accountId,
+      account: accountId!,
       refresh_url: `${SITE_URL}/settings`,
       return_url: `${SITE_URL}/settings`,
       type: 'account_onboarding',
