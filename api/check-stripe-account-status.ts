@@ -1,4 +1,3 @@
-// api/check-stripe-account-status.ts
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -11,7 +10,7 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY as string, {
 const setCorsHeaders = (res: VercelResponse) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS'); // This function can be a GET
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -21,14 +20,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    if (!req.headers.authorization) {
+      console.error('No authorization header received.');
+      return res.status(401).json({ error: 'No authorization header received.' });
+    }
+    
     const supabase = createClient(
       process.env.SUPABASE_URL ?? '',
       process.env.SUPABASE_ANON_KEY ?? '',
       { global: { headers: { Authorization: req.headers.authorization! } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not found');
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError) {
+      console.error('Supabase auth error:', authError.message);
+      return res.status(401).json({ error: `Supabase auth error: ${authError.message}` });
+    }
+    if (!user) {
+      console.error('Supabase user not found. Token might be invalid or expired.');
+      return res.status(401).json({ error: 'User not found. Invalid token.' });
+    }
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -55,7 +67,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ setupComplete: false });
   } catch (error: any) {
-    console.error(error);
+    console.error('Full error in check-stripe-account-status:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

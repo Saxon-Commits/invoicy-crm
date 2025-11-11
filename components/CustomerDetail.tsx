@@ -2,8 +2,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { Customer, Document, BusinessLetter, ActivityLog, EmailTemplate, CompanyInfo } from '../types';
 import { supabase } from '../supabaseClient';
-import { useAuth } from '../AuthContext'; // *** IMPORT useAuth ***
-import { PREFERENCE_TAGS } from '../constants'; // *** IMPORT PREFERENCE_TAGS ***
+import { useAuth } from '../AuthContext'; // *** IMPORTED useAuth ***
+import { PREFERENCE_TAGS } from '../constants'; // *** IMPORTED PREFERENCE_TAGS ***
 
 
 // --- New Email Modal Component (Phase 3) ---

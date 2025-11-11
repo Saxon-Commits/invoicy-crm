@@ -21,15 +21,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // *** DEBUGGING: Check if headers are received ***
+    if (!req.headers.authorization) {
+      console.error('No authorization header received.');
+      return res.status(401).json({ error: 'No authorization header received.' });
+    }
+
     const supabase = createClient(
       process.env.SUPABASE_URL ?? '',
       process.env.SUPABASE_ANON_KEY ?? '',
       { global: { headers: { Authorization: req.headers.authorization! } } }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not found');
-    if (!user.email) throw new Error('User email is missing.');
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError) {
+      console.error('Supabase auth error:', authError.message);
+      return res.status(401).json({ error: `Supabase auth error: ${authError.message}` });
+    }
+    if (!user) {
+      console.error('Supabase user not found. Token might be invalid or expired.');
+      return res.status(401).json({ error: 'User not found. Invalid token.' });
+    }
+    if (!user.email) {
+      return res.status(400).json({ error: 'User email is missing.' });
+    }
+
+    // *** DEBUGGING: Log success ***
+    console.log(`Authenticated user: ${user.id}`);
+
 
     const { data: profileData, error: profileSelectError } = await supabase
       .from('profiles')
@@ -54,6 +74,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!accountId) {
+      if (!process.env.STRIPE_API_KEY) {
+        throw new Error('STRIPE_API_KEY is not set in Vercel.');
+      }
       const account = await stripe.accounts.create({
         type: 'express',
         email: user.email,
@@ -66,9 +89,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .eq('id', user.id);
     }
 
+    if (!SITE_URL) {
+      throw new Error('SITE_URL is not set in Vercel.');
+    }
+    
     const accountLink = await stripe.accountLinks.create({
       account: accountId!,
-      // *** FIX: Add /#/ for HashRouter ***
       refresh_url: `${SITE_URL}/#/settings`,
       return_url: `${SITE_URL}/#/settings`,
       type: 'account_onboarding',
@@ -76,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ url: accountLink.url });
   } catch (error: any) {
-    console.error(error);
+    console.error('Full error in create-stripe-account-link:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }
