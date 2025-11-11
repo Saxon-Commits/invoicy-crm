@@ -363,7 +363,19 @@ const Settings: React.FC<SettingsProps> = ({
   const handleStripeConnect = async () => {
     setStripeLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-stripe-account-link');
+      // 1. Get the current user's session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("User not logged in.");
+      }
+
+      // 2. Call the function WITH the Authorization header
+      const { data, error } = await supabase.functions.invoke('create-stripe-account-link', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      
       if (error) throw error;
       if (data.url) {
         window.location.href = data.url;
@@ -375,7 +387,6 @@ const Settings: React.FC<SettingsProps> = ({
       setStripeLoading(false);
     }
   };
-
   const isStripeConnected = profile?.stripe_account_id && profile?.stripe_account_setup_complete;
 
   return (
