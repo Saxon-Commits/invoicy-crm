@@ -370,14 +370,7 @@ const Settings: React.FC<SettingsProps> = ({
       }
 
       // 2. Call the function WITH the Authorization header
-      const { data, error } = await supabase.functions.invoke(
-        'create-stripe-account-link',
-        {
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-        }
-      );
+      const { data, error } = await supabase.functions.invoke('create-stripe-account-link');
       
       if (error) throw error;
       if (data.url) {

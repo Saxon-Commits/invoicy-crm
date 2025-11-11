@@ -3,12 +3,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.22.0';
 import Stripe from 'https://esm.sh/stripe@12.5.0';
 import { corsHeaders } from '../_shared/cors.ts';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_API_KEY') as string, {
+const stripe = new Stripe(Deno.env.get('VITE_STRIPE_API_KEY') as string, {
   apiVersion: '2022-11-15',
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const SITE_URL = Deno.env.get('SITE_URL') as string;
 
 serve(async (req) => {
   // This is needed for CORS preflight requests.
@@ -18,8 +17,8 @@ serve(async (req) => {
 
   try {
     const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('VITE_SUPABASE_URL') ?? '',
+      Deno.env.get('VITE_SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } },
     );
 
