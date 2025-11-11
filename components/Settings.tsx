@@ -360,7 +360,7 @@ const Settings: React.FC<SettingsProps> = ({
     }
   };
 
-  const handleStripeConnect = async () => {
+ const handleStripeConnect = async () => {
     setStripeLoading(true);
     try {
       // 1. Get the current user's session
@@ -369,8 +369,13 @@ const Settings: React.FC<SettingsProps> = ({
         throw new Error("User not logged in.");
       }
 
-      // 2. Call the function WITH the Authorization header
-      const { data, error } = await supabase.functions.invoke('create-stripe-account-link');
+      // 2. Call the function AND MANUALLY pass the Authorization header
+      //    This was the missing piece.
+      const { data, error } = await supabase.functions.invoke('create-stripe-account-link', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
       
       if (error) throw error;
       if (data.url) {
