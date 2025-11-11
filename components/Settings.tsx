@@ -302,7 +302,7 @@ const Settings: React.FC<SettingsProps> = ({
           // *** FIX: Call the Vercel function, not Supabase function
           // ***
           const response = await fetch('/api/check-stripe-account-status', {
-             method: 'GET',
+             method: 'GET', // Changed to GET as it's just fetching status
              headers: {
                 'Authorization': `Bearer ${session.access_token}`
              }
@@ -316,21 +316,25 @@ const Settings: React.FC<SettingsProps> = ({
           // If setup is complete, trigger a profile refresh by updating the DB
           // App.tsx's listener will pick this up
           if (data.setupComplete) {
-            await supabase
+            // No need to await, let it update in the background
+             supabase
               .from('profiles')
               .update({ stripe_account_setup_complete: true })
-              .eq('id', session.user.id);
+              .eq('id', session.user.id)
+              .then(({ error }) => {
+                if (error) console.error("Error updating profile after Stripe check:", error);
+              });
           }
           
-        } catch (error) {
-          console.error("Error checking Stripe status:", error);
+        } catch (error: any) {
+          console.error("Error checking Stripe status:", error.message);
         } finally {
           setStripeLoading(false);
         }
       }
     };
     checkStripeStatus();
-  }, [profile]);
+  }, [profile]); // Reruns when profile changes (e.g., on login or after DB update)
 
   // Local state for immediate UI feedback on form inputs
   const [localCompanyInfo, setLocalCompanyInfo] = useState(companyInfo);
@@ -400,7 +404,7 @@ const Settings: React.FC<SettingsProps> = ({
       // *** FIX: Call the Vercel function, not Supabase function
       // ***
       const response = await fetch('/api/create-stripe-account-link', {
-        method: 'POST',
+        method: 'POST', // Use POST as it's creating something
         headers: {
             'Authorization': `Bearer ${session.access_token}`
         }
