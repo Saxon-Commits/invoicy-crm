@@ -24,14 +24,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'No authorization header received.' });
     }
 
-    // *** FIX: Use the SERVICE_ROLE_KEY for admin actions ***
-    const supabase = createClient(
+    // ***
+    // *** STEP 1: Authenticate the user with the ANON key and their token ***
+    // ***
+    const authClient = createClient(
       process.env.SUPABASE_URL ?? '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY ?? '', // Use the secret key
+      process.env.SUPABASE_ANON_KEY ?? '', // Use the ANON public key
       { global: { headers: { Authorization: req.headers.authorization! } } }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
     
     if (authError) {
       console.error('Supabase auth error:', authError.message);
@@ -44,9 +46,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'User email is missing.' });
     }
 
-    console.log(`Authenticated user: ${user.id}`);
+    // ***
+    // *** STEP 2: Create an ADMIN client with the SERVICE key to do secure tasks ***
+    // ***
+    const adminClient = createClient(
+      process.env.SUPABASE_URL ?? '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? '' // Use the SERVICE_ROLE secret key
+    );
 
-    const { data: profileData, error: profileSelectError } = await supabase
+    // Now we use the adminClient to perform database actions
+    const { data: profileData, error: profileSelectError } = await adminClient
       .from('profiles')
       .select('stripe_account_id')
       .eq('id', user.id)
@@ -57,7 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let accountId: string | null | undefined = profileData?.stripe_account_id;
 
     if (!profileData) {
-      const { error: profileInsertError } = await supabase
+      const { error: profileInsertError } = await adminClient
         .from('profiles')
         .insert({
           id: user.id,
@@ -78,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       accountId = account.id;
 
-      await supabase
+      await adminClient
         .from('profiles')
         .update({ stripe_account_id: accountId })
         .eq('id', user.id);

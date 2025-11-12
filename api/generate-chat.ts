@@ -14,13 +14,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // *** FIX: Use the SERVICE_ROLE_KEY for admin actions ***
-    const supabase = createClient(
+    // ***
+    // *** STEP 1: Authenticate the user with the ANON key and their token ***
+    // ***
+    const authClient = createClient(
       process.env.SUPABASE_URL ?? '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY ?? '', // Use the secret key
+      process.env.SUPABASE_ANON_KEY ?? '', // Use the ANON public key
       { global: { headers: { Authorization: req.headers.authorization! } } }
     );
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
 
     if (authError) {
       console.error('Supabase auth error:', authError.message);
@@ -30,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    // User is authenticated, now we can proceed
     const { history, message } = req.body;
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 

@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-// Helper to set CORS headers
 const setCorsHeaders = (res: VercelResponse) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
@@ -14,22 +13,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send('ok');
   }
 
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
-  }
-
   try {
-    const supabase = createClient(
+    // ***
+    // *** STEP 1: Authenticate the user with the ANON key and their token ***
+    // ***
+    const authClient = createClient(
       process.env.SUPABASE_URL ?? '',
-      process.env.SUPABASE_ANON_KEY ?? '',
+      process.env.SUPABASE_ANON_KEY ?? '', // Use the ANON public key
       { global: { headers: { Authorization: req.headers.authorization! } } }
     );
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    
+    if (authError) {
+      console.error('Supabase auth error:', authError.message);
+      return res.status(401).json({ error: `Supabase auth error: ${authError.message}` });
+    }
     if (!user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
+    // User is authenticated, now we can send the email
     const { to, subject, body, attachment } = req.body;
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
@@ -59,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ message: 'Email sent successfully!' });
   } catch (error: any) {
-    console.error('Full error in send-email:', error.message);
+    console.error('Error in send-email function:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

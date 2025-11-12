@@ -23,14 +23,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'No authorization header received.' });
     }
     
-    // *** FIX: Use the SERVICE_ROLE_KEY for admin actions ***
-    const supabase = createClient(
+    // ***
+    // *** STEP 1: Authenticate the user with the ANON key and their token ***
+    // ***
+    const authClient = createClient(
       process.env.SUPABASE_URL ?? '',
-      process.env.SUPABASE_SERVICE_ROLE_KEY ?? '', // Use the secret key
+      process.env.SUPABASE_ANON_KEY ?? '', // Use the ANON public key
       { global: { headers: { Authorization: req.headers.authorization! } } }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
 
     if (authError) {
       console.error('Supabase auth error:', authError.message);
@@ -40,7 +42,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'User not found. Invalid token.' });
     }
 
-    const { data: profile, error: profileError } = await supabase
+    // ***
+    // *** STEP 2: Create an ADMIN client with the SERVICE key to do secure tasks ***
+    // ***
+    const adminClient = createClient(
+      process.env.SUPABASE_URL ?? '',
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? '' // Use the SERVICE_ROLE secret key
+    );
+
+    const { data: profile, error: profileError } = await adminClient
       .from('profiles')
       .select('stripe_account_id, stripe_account_setup_complete')
       .eq('id', user.id)
@@ -59,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const account = await stripe.accounts.retrieve(profile.stripe_account_id);
 
     if (account.charges_enabled) {
-      await supabase.from('profiles').update({ stripe_account_setup_complete: true }).eq('id', user.id);
+      await adminClient.from('profiles').update({ stripe_account_setup_complete: true }).eq('id', user.id);
       return res.status(200).json({ setupComplete: true });
     }
 
