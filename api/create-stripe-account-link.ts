@@ -3,7 +3,6 @@ import Stripe from 'stripe';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY as string, {
-  apiVersion: '2022-11-15',
 });
 const SITE_URL = process.env.SITE_URL;
 
