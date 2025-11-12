@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatSession, ChatMessage } from '../types';
 import { supabase } from '../supabaseClient';
+import { useAuth } from '../AuthContext'; // *** IMPORT useAuth ***
 
 // Helper to format dates
 const formatDate = (isoString: string) => {
@@ -24,6 +25,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ sessions, addSession, updateS
     const [currentMessage, setCurrentMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const { session } = useAuth(); // *** GET THE SESSION ***
 
     const activeSession = sessions.find(s => s.id === activeSessionId);
 
@@ -43,7 +45,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ sessions, addSession, updateS
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!currentMessage.trim() || !activeSessionId || isLoading) return;
+        if (!currentMessage.trim() || !activeSessionId || isLoading || !session) return;
 
         const userMessage: ChatMessage = { role: 'user', content: currentMessage.trim() };
         const tempMessage = currentMessage;
@@ -60,15 +62,25 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ sessions, addSession, updateS
         updateSession({ ...currentSession, messages: updatedMessages });
 
         try {
-            // Call our secure Supabase Edge Function
-            const { data, error } = await supabase.functions.invoke('generate-chat', {
-                body: {
+            // ***
+            // *** FIX: Call the Vercel function, not Supabase function
+            // ***
+            const response = await fetch('/api/generate-chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}` // *** PASS AUTH TOKEN ***
+                },
+                body: JSON.stringify({
                     history: currentSession.messages,
                     message: userMessage.content,
-                },
+                }),
             });
 
-            if (error) throw error;
+            const data = await response.json();
+            if (!response.ok) {
+                 throw new Error(data.error || 'Failed to get response from chat API');
+            }
 
             const modelMessage: ChatMessage = { role: 'model', content: data.response };
             
@@ -82,9 +94,9 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ sessions, addSession, updateS
                 finalSession.title = tempMessage.split(' ').slice(0, 4).join(' ');
             }
             updateSession(finalSession);
-        } catch (error) {
-            console.error("Error calling Supabase function:", error);
-            const errorMessage: ChatMessage = { role: 'model', content: 'Sorry, I ran into an issue. Please check your connection or API key and try again.' };
+        } catch (error: any) {
+            console.error("Error calling chat function:", error.message);
+            const errorMessage: ChatMessage = { role: 'model', content: `Sorry, I ran into an issue: ${error.message}` };
             updateSession({ ...currentSession, messages: [...updatedMessages, errorMessage] });
         } finally {
             setIsLoading(false);
