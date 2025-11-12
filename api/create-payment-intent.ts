@@ -1,4 +1,3 @@
-// api/create-payment-intent.ts
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -20,14 +19,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send('ok');
   }
 
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+  }
+
   try {
-    // This is public, so we use the ANON key
     const supabase = createClient(
       process.env.SUPABASE_URL ?? '',
       process.env.SUPABASE_ANON_KEY ?? ''
     );
 
-    // Vercel parses the body for you
     const { documentId } = req.body;
 
     if (!documentId) {
@@ -66,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ clientSecret: paymentIntent.client_secret });
   } catch (error: any) {
-    console.error(error);
+    console.error('Full error in create-payment-intent:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

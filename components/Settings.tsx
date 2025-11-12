@@ -299,10 +299,10 @@ const Settings: React.FC<SettingsProps> = ({
           if (!session) return;
           
           // ***
-          // *** FIX: Call the Vercel function, not Supabase function
+          // *** FIX: Call the Vercel function using fetch
           // ***
           const response = await fetch('/api/check-stripe-account-status', {
-             method: 'GET', // Changed to GET as it's just fetching status
+             method: 'POST', // Match the POST method in the API file
              headers: {
                 'Authorization': `Bearer ${session.access_token}`
              }
@@ -313,17 +313,12 @@ const Settings: React.FC<SettingsProps> = ({
             throw new Error(data.error || 'Failed to check Stripe status');
           }
 
-          // If setup is complete, trigger a profile refresh by updating the DB
-          // App.tsx's listener will pick this up
           if (data.setupComplete) {
-            // No need to await, let it update in the background
-             supabase
+            // Trigger profile refresh in App.tsx by updating the database
+            await supabase
               .from('profiles')
               .update({ stripe_account_setup_complete: true })
-              .eq('id', session.user.id)
-              .then(({ error }) => {
-                if (error) console.error("Error updating profile after Stripe check:", error);
-              });
+              .eq('id', session.user.id);
           }
           
         } catch (error: any) {
@@ -334,7 +329,7 @@ const Settings: React.FC<SettingsProps> = ({
       }
     };
     checkStripeStatus();
-  }, [profile]); // Reruns when profile changes (e.g., on login or after DB update)
+  }, [profile]);
 
   // Local state for immediate UI feedback on form inputs
   const [localCompanyInfo, setLocalCompanyInfo] = useState(companyInfo);
@@ -401,10 +396,10 @@ const Settings: React.FC<SettingsProps> = ({
       }
 
       // ***
-      // *** FIX: Call the Vercel function, not Supabase function
+      // *** FIX: Call the Vercel function using fetch
       // ***
       const response = await fetch('/api/create-stripe-account-link', {
-        method: 'POST', // Use POST as it's creating something
+        method: 'POST',
         headers: {
             'Authorization': `Bearer ${session.access_token}`
         }

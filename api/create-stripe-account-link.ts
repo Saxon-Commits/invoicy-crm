@@ -20,8 +20,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).send('ok');
   }
 
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+  }
+
   try {
-    // *** DEBUGGING: Check if headers are received ***
     if (!req.headers.authorization) {
       console.error('No authorization header received.');
       return res.status(401).json({ error: 'No authorization header received.' });
@@ -47,7 +51,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'User email is missing.' });
     }
 
-    // *** DEBUGGING: Log success ***
     console.log(`Authenticated user: ${user.id}`);
 
 

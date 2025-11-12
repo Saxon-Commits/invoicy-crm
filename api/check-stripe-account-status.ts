@@ -10,13 +10,19 @@ const stripe = new Stripe(process.env.STRIPE_API_KEY as string, {
 const setCorsHeaders = (res: VercelResponse) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS'); // *** FIX: Allow POST ***
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCorsHeaders(res);
   if (req.method === 'OPTIONS') {
     return res.status(200).send('ok');
+  }
+  
+  // *** FIX: Explicitly handle POST or GET, reject others ***
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.setHeader('Allow', 'POST, GET');
+    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
   try {
