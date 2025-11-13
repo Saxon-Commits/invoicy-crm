@@ -839,6 +839,23 @@ export const generatePdf = (document: Document, companyInfo: CompanyInfo) => {
   doc.save(`${document.type}-${document.doc_number}.pdf`);
 };
 
+export const generatePdfAsBase64 = async (document: Document, companyInfo: CompanyInfo): Promise<string> => {
+  const { jsPDF } = jspdf;
+  const doc = new jsPDF({
+    orientation: 'p',
+    unit: 'px',
+    format: 'a4',
+  });
+
+  const drawTemplate = templates[document.template_id] || drawModernTemplate;
+  if (!templates[document.template_id]) {
+    console.warn(`PDF template "${document.template_id}" not found, falling back to "modern".`);
+  }
+  drawTemplate(doc, document, companyInfo);
+
+  return doc.output('datauristring').split(',')[1];
+};
+
 const drawLetterTemplate = (doc: any, letter: BusinessLetter, companyInfo: CompanyInfo) => {
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 50;

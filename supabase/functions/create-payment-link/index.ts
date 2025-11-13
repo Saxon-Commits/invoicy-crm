@@ -32,9 +32,9 @@ serve(async (req) => {
     )
 
     // 2. Get the invoice data from the request body
-    const { invoice }: { invoice: Invoice } = await req.json()
-    if (!invoice) {
-      throw new Error("Invoice data not provided in the request body.");
+    const { invoice, stripe_account_id } = await req.json()
+    if (!invoice || !stripe_account_id) {
+      throw new Error("Invoice data or Stripe Account ID not provided.");
     }
 
     // 3. Initialize Stripe with your secret key
@@ -46,6 +46,8 @@ serve(async (req) => {
     // 4. Create a Product in Stripe for this specific invoice
     const product = await stripe.products.create({
       name: `Invoice ${invoice.doc_number}`,
+    }, {
+      stripeAccount: stripe_account_id,
     });
 
     // 5. Create a Price for the Product (amount must be in cents)
@@ -53,6 +55,8 @@ serve(async (req) => {
       product: product.id,
       unit_amount: Math.round(invoice.total * 100),
       currency: 'aud', // IMPORTANT: Change this to your currency if not AUD
+    }, {
+      stripeAccount: stripe_account_id,
     });
 
     // 6. Create the actual Payment Link that the customer will use
@@ -66,6 +70,8 @@ serve(async (req) => {
           url: `https://your-app-url.com/payment-success?invoice_id=${invoice.id}`,
         },
       },
+    }, {
+      stripeAccount: stripe_account_id,
     });
 
     // 7. Save the generated payment link back to your 'documents' table

@@ -270,7 +270,7 @@ const App: React.FC = () => {
         if (data && profile?.stripe_account_id) {
             try {
                 const { data: functionData, error: functionError } = await supabase.functions.invoke('create-payment-link', {
-                    body: { invoice: data },
+                    body: { invoice: data, stripe_account_id: profile.stripe_account_id },
                 });
 
                 if (functionError) throw functionError;

@@ -23,7 +23,16 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-slate-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col">
+    <div className="bg-white text-slate-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="flex justify-between items-start pb-8 border-b-2 border-primary-500">
@@ -32,7 +41,6 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
                 {document.type}
               </h1>
               {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-slate-500 mt-1">{document.doc_number}</p>
               <p className="text-slate-500 mt-1">{document.doc_number || '...'}</p>
             </div>
             <div className="text-right">
@@ -97,14 +105,16 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -146,7 +156,16 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-900 p-4 sm:p-6 lg:p-10 font-serif h-full flex flex-col">
+    <div className="bg-white text-gray-900 p-4 sm:p-6 lg:p-10 font-serif h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="text-center mb-10">
@@ -168,7 +187,6 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
               {/* Fix: Changed docNumber to doc_number */}
               <p>
                 <span className="font-semibold text-gray-700">Number:</span> {document.doc_number}
-                <span className="font-semibold text-gray-700">Number:</span> {document.doc_number || '...'}
               </p>
               {/* Fix: Changed issueDate to issue_date */}
               <p>
@@ -216,14 +234,16 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -269,9 +289,18 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-slate-900 text-white p-4 sm:p-6 lg:p-10 font-mono relative overflow-hidden h-full flex flex-col">
+    <div className="bg-slate-900 text-white p-4 sm:p-6 lg:p-10 font-mono overflow-hidden h-full flex flex-col relative">
       <div className="absolute -top-20 -left-20 w-64 h-64 bg-fuchsia-500/30 rounded-full filter blur-3xl"></div>
       <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-cyan-500/30 rounded-full filter blur-3xl"></div>
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-400/30 border-8 border-green-400/30 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
 
       {showHeader && (
         <>
@@ -290,7 +319,6 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
             <div className="text-right">
               <h1 className="text-5xl font-extrabold text-cyan-400 uppercase">{document.type}</h1>
               {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-fuchsia-400">{document.doc_number}</p>
               <p className="text-fuchsia-400">{document.doc_number || '...'}</p>
             </div>
           </header>
@@ -338,14 +366,16 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto relative z-10">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -387,7 +417,16 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-light font-sans h-full flex flex-col">
+    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-light font-sans h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="flex justify-between items-start mb-16">
@@ -408,7 +447,6 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
                 {document.type}
               </h1>
               {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-gray-500 mt-1">{document.doc_number}</p>
               <p className="text-gray-500 mt-1">{document.doc_number || '...'}</p>
             </div>
           </header>
@@ -468,14 +506,16 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -515,7 +555,16 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-900 font-sans h-full flex flex-col">
+    <div className="bg-white text-gray-900 font-sans h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="bg-gray-900 text-white p-4 sm:p-6 lg:p-10">
@@ -534,7 +583,6 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
               <div className="text-right">
                 <h1 className="text-5xl font-extrabold uppercase text-white">{document.type}</h1>
                 {/* Fix: Changed docNumber to doc_number */}
-                <p className="text-gray-300 mt-1">{document.doc_number}</p>
                 <p className="text-gray-300 mt-1">{document.doc_number || '...'}</p>
               </div>
             </div>
@@ -592,14 +640,16 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto px-4 sm:px-6 lg:px-10">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -639,7 +689,16 @@ const TemplateRetro: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-[#fdf6e3] text-[#586e75] p-4 sm:p-6 lg:p-10 font-mono h-full flex flex-col">
+    <div className="bg-[#fdf6e3] text-[#586e75] p-4 sm:p-6 lg:p-10 font-mono h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="text-center mb-10 border-y-2 border-dashed border-[#93a1a1] py-4">
@@ -698,14 +757,16 @@ const TemplateRetro: React.FC<ExtendedPreviewProps> = ({
 
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -745,7 +806,16 @@ const TemplateCorporate: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col">
+    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="flex justify-between items-start pb-6 mb-6 border-b-4 border-blue-700">
@@ -763,7 +833,6 @@ const TemplateCorporate: React.FC<ExtendedPreviewProps> = ({
             <div className="text-right">
               <h1 className="text-4xl font-bold text-blue-700 uppercase">{document.type}</h1>
               {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-gray-500 mt-1">{document.doc_number}</p>
               <p className="text-gray-500 mt-1">{document.doc_number || '...'}</p>
             </div>
           </header>
@@ -814,14 +883,16 @@ const TemplateCorporate: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -862,7 +933,16 @@ const TemplateElegant: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-serif h-full flex flex-col">
+    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-serif h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-amber-600/20 border-8 border-amber-600/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="text-center mb-10">
@@ -888,7 +968,6 @@ const TemplateElegant: React.FC<ExtendedPreviewProps> = ({
               <h1 className="text-3xl font-bold text-gray-800 uppercase">{document.type}</h1>
               {/* Fix: Changed docNumber to doc_number */}
               <p className="text-gray-600">{document.doc_number}</p>
-              {/* Fix: Changed issueDate to issue_date */}
               <p className="text-gray-600">{document.doc_number || '...'}</p>
               <p className="mt-4">
                 <span className="font-semibold text-gray-600">Date:</span> {document.issue_date}
@@ -927,14 +1006,16 @@ const TemplateElegant: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -969,9 +1050,18 @@ const TemplateFriendly: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col relative overflow-hidden">
+    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col overflow-hidden relative">
       <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-green-500/10 rounded-full"></div>
       <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-48 h-48 bg-green-500/10 rounded-full"></div>
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <header className="relative z-10">
           <div className="flex justify-between items-center mb-10">
@@ -988,7 +1078,6 @@ const TemplateFriendly: React.FC<ExtendedPreviewProps> = ({
             <div className="text-right">
               <h1 className="text-4xl font-bold text-green-600 uppercase">{document.type}</h1>
               {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-gray-500">{document.doc_number}</p>
               <p className="text-gray-500">{document.doc_number || '...'}</p>
             </div>
           </div>
@@ -1039,14 +1128,16 @@ const TemplateFriendly: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto relative z-10">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -1081,7 +1172,16 @@ const TemplateTechnical: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-mono h-full flex flex-col text-sm">
+    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-mono h-full flex flex-col text-sm relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="mb-8">
@@ -1096,7 +1196,6 @@ const TemplateTechnical: React.FC<ExtendedPreviewProps> = ({
             {/* Fix: Changed docNumber to doc_number */}
             <p className="mt-4">
               <span className="text-sky-600">SUBJECT:</span> {document.type} #{document.doc_number}
-              <span className="text-sky-600">SUBJECT:</span> {document.type} #{document.doc_number || '...'}
             </p>
             {/* Fix: Changed issueDate to issue_date */}
             <p>
@@ -1134,14 +1233,16 @@ const TemplateTechnical: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -1180,7 +1281,16 @@ const TemplateEarthy: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-emerald-50 text-stone-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col">
+    <div className="bg-emerald-50 text-stone-800 p-4 smp-6 lg:p-10 font-sans h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="flex justify-between items-start mb-10">
@@ -1197,7 +1307,6 @@ const TemplateEarthy: React.FC<ExtendedPreviewProps> = ({
             <div className="text-right">
               <h1 className="text-4xl font-bold text-stone-700 uppercase">{document.type}</h1>
               {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-stone-500">{document.doc_number}</p>
               <p className="text-stone-500">{document.doc_number || '...'}</p>
             </div>
           </header>
@@ -1246,14 +1355,16 @@ const TemplateEarthy: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
@@ -1288,7 +1399,16 @@ const TemplateSwiss: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-black p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col">
+    <div className="bg-white text-black p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col relative">
+      {document.status === 'paid' && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div
+            className="text-8xl font-black text-red-500/20 border-8 border-red-500/20 rounded-full px-8 py-4 transform -rotate-12"
+          >
+            PAID
+          </div>
+        </div>
+      )}
       {showHeader && (
         <>
           <header className="grid grid-cols-3 gap-8 items-start mb-16">
@@ -1315,7 +1435,6 @@ const TemplateSwiss: React.FC<ExtendedPreviewProps> = ({
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider mb-2">Number</h3>
               {/* Fix: Changed docNumber to doc_number */}
-              <p>{document.doc_number}</p>
               <p>{document.doc_number || '...'}</p>
             </div>
             <div>
@@ -1352,14 +1471,16 @@ const TemplateSwiss: React.FC<ExtendedPreviewProps> = ({
       </section>
       {showFooter && (
         <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && profile?.stripe_account_id && profile?.stripe_account_setup_complete && (
+          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== 'paid' && (
             <div className="my-6 text-center">
-              <Link
-                to={`/pay/${document.id}`}
+              <a
+                href={document.stripe_payment_link}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
               >
-                Pay with Card
-              </Link>
+                Pay Now
+              </a>
             </div>
           )}
 
