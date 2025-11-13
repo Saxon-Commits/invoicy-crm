@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Customer } from '@/src/types';
-import { PREFERENCE_TAGS } from '@/src/constants.ts';
+import { PREFERENCE_TAGS } from '@/constants';
 
 interface PreferencesModalProps {
   customer: Customer | null;
