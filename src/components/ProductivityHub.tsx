@@ -68,7 +68,7 @@ const TableBlockComponent: React.FC<{ block: TableBlock; onUpdate: (block: PageB
                             <tr key={rIdx}>
                                 {row.map((cell, cIdx) => (
                                     <td key={cIdx} className="p-1 border border-slate-200 dark:border-zinc-700">
-                                        <input type="text" value={cell} onChange={e => handleCellChange(rIdx, cIdx, e.target.value)} className="w-full p-1 bg-transparent focus:outline-none focus:bg-slate-100 dark:focus:bg-zinc-700 rounded"/>
+                                        <input type="text" value={cell} onChange={e => handleCellChange(rIdx, cIdx, e.target.value)} className="w-full p-1 bg-transparent focus:outline-none focus:bg-slate-100 dark:focus:bg-zinc-700 rounded" />
                                     </td>
                                 ))}
                                 <td className="p-1"><button onClick={() => removeRow(rIdx)} className="text-red-500 text-xs hover:underline">Del</button></td>
@@ -102,8 +102,8 @@ const ChartBlockComponent: React.FC<{ block: ChartBlock; onUpdate: (block: PageB
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                     {block.data.map((d, i) => (
                         <div key={i} className="flex gap-2 items-center text-sm">
-                            <input type="text" value={d.label} onChange={e => handleDataChange(i, 'label', e.target.value)} placeholder="Label" className="w-full p-1 border rounded bg-slate-100 dark:bg-zinc-700 border-slate-200 dark:border-zinc-600"/>
-                            <input type="number" value={d.value} onChange={e => handleDataChange(i, 'value', e.target.value)} placeholder="Value" className="w-20 p-1 border rounded bg-slate-100 dark:bg-zinc-700 border-slate-200 dark:border-zinc-600"/>
+                            <input type="text" value={d.label} onChange={e => handleDataChange(i, 'label', e.target.value)} placeholder="Label" className="w-full p-1 border rounded bg-slate-100 dark:bg-zinc-700 border-slate-200 dark:border-zinc-600" />
+                            <input type="number" value={d.value} onChange={e => handleDataChange(i, 'value', e.target.value)} placeholder="Value" className="w-20 p-1 border rounded bg-slate-100 dark:bg-zinc-700 border-slate-200 dark:border-zinc-600" />
                             <button onClick={() => removeDataPoint(i)} className="text-red-500 hover:text-red-700">&times;</button>
                         </div>
                     ))}
@@ -263,9 +263,9 @@ const PageContent: React.FC<{
                 {editor && (
                     <BubbleMenu editor={editor} tippyOptions={{ duration: 100, placement: 'bottom' }}>
                         <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 p-1 rounded-lg shadow-lg border border-slate-200 dark:border-zinc-700">
-                             <EditorToolbar editor={editor} />
-                             <div className="w-px h-5 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
-                             <button onClick={handleCreateExpense} className="px-2 py-1 text-sm font-semibold rounded hover:bg-slate-100 dark:hover:bg-zinc-700">Create Expense</button>
+                            <EditorToolbar editor={editor} />
+                            <div className="w-px h-5 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+                            <button onClick={handleCreateExpense} className="px-2 py-1 text-sm font-semibold rounded hover:bg-slate-100 dark:hover:bg-zinc-700">Create Expense</button>
                             {page.customer_id && <button onClick={handleSendToInvoice} className="px-2 py-1 text-sm font-semibold rounded hover:bg-slate-100 dark:hover:bg-zinc-700">Add to Invoice</button>}
                         </div>
                     </BubbleMenu>
@@ -311,10 +311,21 @@ const ProductivityHub: React.FC<ProductivityHubProps> = ({ pages, customers, doc
         if (location.state?.activePageId && pages.some(p => p.id === location.state.activePageId)) {
             setActivePageId(location.state.activePageId);
             navigate(location.pathname, { replace: true, state: {} });
+        } else if (location.state?.customerId) {
+            const createPageForCustomer = async () => {
+                const newPage = await addPage({
+                    customer_id: location.state.customerId,
+                    title: 'Untitled Page',
+                    icon: '📝'
+                });
+                if (newPage) setActivePageId(newPage.id);
+                navigate(location.pathname, { replace: true, state: {} });
+            };
+            createPageForCustomer();
         } else if (!activePageId && sortedPages.length > 0) {
             setActivePageId(sortedPages[0].id);
         }
-    }, [location.state, pages, activePageId, sortedPages, navigate]);
+    }, [location.state, pages, activePageId, sortedPages, navigate, addPage]);
 
     const handleAddPage = async () => {
         const newPage = await addPage({});

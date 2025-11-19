@@ -288,6 +288,12 @@ const BillsAndExpenses: React.FC<BillsAndExpensesProps> = ({
   customers,
   openExpenseModal,
 }) => {
+  // Filter States
+  const [filterDateStart, setFilterDateStart] = useState('');
+  const [filterDateEnd, setFilterDateEnd] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
   const stats = useMemo(() => {
     const thisMonth = new Date().getMonth();
     const thisYear = new Date().getFullYear();
@@ -337,10 +343,23 @@ const BillsAndExpenses: React.FC<BillsAndExpensesProps> = ({
     openExpenseModal(undefined, expense);
   };
 
-  const sortedExpenses = useMemo(
-    () => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [expenses]
-  );
+  const filteredExpenses = useMemo(() => {
+    return expenses
+      .filter((e) => {
+        // Date Filter
+        if (filterDateStart && e.date < filterDateStart) return false;
+        if (filterDateEnd && e.date > filterDateEnd) return false;
+
+        // Category Filter
+        if (filterCategory && e.category !== filterCategory) return false;
+
+        // Status Filter
+        if (filterStatus && e.status !== filterStatus) return false;
+
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [expenses, filterDateStart, filterDateEnd, filterCategory, filterStatus]);
 
   const getStatusBadge = (status: Expense['status']) => {
     switch (status) {
@@ -375,7 +394,8 @@ const BillsAndExpenses: React.FC<BillsAndExpensesProps> = ({
 
   return (
     <div className="space-y-6 h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-zinc-100">Bills & Expenses</h1>
         <button
           onClick={handleAdd}
           className="bg-primary-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-primary-700 flex items-center gap-2"
@@ -460,40 +480,119 @@ const BillsAndExpenses: React.FC<BillsAndExpensesProps> = ({
       </div>
 
       <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm overflow-x-auto">
-        <h2 className="text-xl font-semibold mb-4 text-slate-800 dark:text-zinc-100">
-          All Expenses
-        </h2>
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
+          <h2 className="text-xl font-semibold text-slate-800 dark:text-zinc-100">
+            All Expenses
+          </h2>
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="date"
+              value={filterDateStart}
+              onChange={(e) => setFilterDateStart(e.target.value)}
+              className="p-2 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+              placeholder="Start Date"
+            />
+            <input
+              type="date"
+              value={filterDateEnd}
+              onChange={(e) => setFilterDateEnd(e.target.value)}
+              className="p-2 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+              placeholder="End Date"
+            />
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="p-2 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+            >
+              <option value="">All Categories</option>
+              {EXPENSE_CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="p-2 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+            >
+              <option value="">All Statuses</option>
+              <option value="paid">Paid</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="billed">Billed</option>
+              <option value="unbilled">Unbilled</option>
+            </select>
+            {(filterDateStart || filterDateEnd || filterCategory || filterStatus) && (
+              <button
+                onClick={() => {
+                  setFilterDateStart('');
+                  setFilterDateEnd('');
+                  setFilterCategory('');
+                  setFilterStatus('');
+                }}
+                className="text-sm text-red-500 hover:underline px-2"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
         <table className="w-full text-left min-w-[600px]">
           <thead className="text-xs text-slate-500 dark:text-zinc-400 uppercase border-b border-slate-200 dark:border-zinc-800">
             <tr>
               <th className="py-3 pr-3">Description</th>
               <th className="py-3 px-3">Date</th>
+              <th className="py-3 px-3">Category</th>
               <th className="py-3 px-3">Customer</th>
               <th className="py-3 px-3">Status</th>
               <th className="py-3 pl-3 text-right">Amount</th>
             </tr>
           </thead>
           <tbody>
-            {sortedExpenses.map((exp) => {
-              const customer = customers.find((c) => c.id === exp.customer_id);
-              return (
-                <tr
-                  key={exp.id}
-                  onClick={() => handleEdit(exp)}
-                  className="border-b border-slate-200 dark:border-zinc-800 last:border-b-0 hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer"
-                >
-                  <td className="py-3 pr-3 font-medium">{exp.description}</td>
-                  <td className="py-3 px-3 text-slate-500 dark:text-zinc-400">{exp.date}</td>
-                  <td className="py-3 px-3 text-slate-500 dark:text-zinc-400">
-                    {customer?.name || 'Internal'}
-                  </td>
-                  <td className="py-3 px-3">{getStatusBadge(exp.status)}</td>
-                  <td className="py-3 pl-3 text-right font-semibold">
-                    {formatCurrency(exp.amount)}
-                  </td>
-                </tr>
-              );
-            })}
+            {filteredExpenses.length > 0 ? (
+              filteredExpenses.map((exp) => {
+                const customer = customers.find((c) => c.id === exp.customer_id);
+                return (
+                  <tr
+                    key={exp.id}
+                    onClick={() => handleEdit(exp)}
+                    className="border-b border-slate-200 dark:border-zinc-800 last:border-b-0 hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer"
+                  >
+                    <td className="py-3 pr-3 font-medium">
+                      {exp.description}
+                      {exp.receipt_image && (
+                        <span className="ml-2 inline-block text-xs bg-slate-100 dark:bg-zinc-800 px-1 rounded text-slate-500">📎</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3 text-slate-500 dark:text-zinc-400">{exp.date}</td>
+                    <td className="py-3 px-3 text-slate-500 dark:text-zinc-400 text-sm">{exp.category}</td>
+                    <td className="py-3 px-3 text-slate-500 dark:text-zinc-400">
+                      {customer ? (
+                        <span className="flex items-center gap-1 text-primary-600 dark:text-primary-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          {customer.name}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic">Internal</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3">{getStatusBadge(exp.status)}</td>
+                    <td className="py-3 pl-3 text-right font-semibold">
+                      {formatCurrency(exp.amount)}
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-500 dark:text-zinc-400">
+                  No expenses found matching your filters.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

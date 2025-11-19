@@ -253,6 +253,8 @@ const App: React.FC = () => {
                     activityLogs={activityLogs}
                     customers={customers}
                     addActivityLog={addActivityLog}
+                    expenses={expenses}
+                    tasks={tasks}
                   />
                 }
               />

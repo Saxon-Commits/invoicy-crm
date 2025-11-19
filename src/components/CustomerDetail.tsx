@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import {
   Customer,
   Document,
@@ -228,6 +228,7 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
   setCommonTags,
 }) => {
   const { customerId } = useParams<{ customerId: string }>();
+  const navigate = useNavigate();
   // The customer object here *will* have the activityLog array
   const customer = customers.find((c) => c.id === customerId);
 
@@ -463,6 +464,15 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
               </div>
             )}
           </div>
+          <button
+            onClick={() => navigate('/productivity-hub', { state: { customerId: customer.id } })}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <span>Create Page</span>
+          </button>
         </div>
       </div>
 
@@ -477,21 +487,19 @@ const CustomerDetail: React.FC<CustomerDetailProps> = ({
           <div className="flex border-b border-slate-200 dark:border-zinc-800 mb-4">
             <button
               onClick={() => setActiveTab('activity')}
-              className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-                activeTab === 'activity'
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
-              }`}
+              className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'activity'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
+                }`}
             >
               Activity Log
             </button>
             <button
               onClick={() => setActiveTab('preferences')}
-              className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
-                activeTab === 'preferences'
-                  ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-                  : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
-              }`}
+              className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${activeTab === 'preferences'
+                ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
+                }`}
             >
               Preferences
             </button>
