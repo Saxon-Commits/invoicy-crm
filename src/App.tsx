@@ -339,6 +339,10 @@ const App: React.FC = () => {
               />
               <Route
                 path="/expenses"
+                element={<Navigate to="/bills-and-expenses" replace />}
+              />
+              <Route
+                path="/bills-and-expenses"
                 element={
                   <BillsAndExpenses
                     expenses={expenses}
@@ -372,6 +376,10 @@ const App: React.FC = () => {
               />
               <Route
                 path="/productivity"
+                element={<Navigate to="/productivity-hub" replace />}
+              />
+              <Route
+                path="/productivity-hub"
                 element={
                   <ProductivityHub
                     pages={productivityPages}
