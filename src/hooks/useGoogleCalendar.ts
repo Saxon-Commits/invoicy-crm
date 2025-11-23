@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 
 export const useGoogleCalendar = () => {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [isConnected, setIsConnected] = useState(false);
 
     // Check if user is connected to Google
