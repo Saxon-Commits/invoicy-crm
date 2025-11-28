@@ -2,6 +2,10 @@
   "name": "invoicycrm",
   "private": true,
   "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Saxon-Commits/invoicy-crm.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

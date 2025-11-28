@@ -11,7 +11,7 @@ import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import CrmView from './components/CrmView';
 import DocumentEditor from './components/DocumentEditor';
-import Projects from './components/Projects';
+
 import BillsAndExpenses, { ExpenseModal } from './components/BillsAndExpenses';
 import Calendar from './components/Calendar';
 import Settings from './components/Settings';
@@ -20,12 +20,12 @@ import CustomerDetail from './components/CustomerDetail';
 import Files from './components/Files';
 import AuthPage from './components/Auth';
 import { useAuth } from './AuthContext';
-import ProductivityHub from './components/ProductivityHub';
+
 import QuickActions from './components/QuickActions';
 
 // Modals
 import CustomerModal from './components/CustomerModal';
-import AddNoteModal from './components/AddNoteModal';
+
 import EmailModal from './components/EmailModal';
 import SetGoalModal from './components/SetGoalModal';
 
@@ -37,7 +37,8 @@ import { useCalendarEvents } from './hooks/useCalendarEvents';
 import { useTasks } from './hooks/useTasks';
 import { useEmailTemplates } from './hooks/useEmailTemplates';
 import { useActivityLogs } from './hooks/useActivityLogs';
-import { useProductivityPages } from './hooks/useProductivityPages';
+
+
 import { useProfile } from './hooks/useProfile';
 
 const App: React.FC = () => {
@@ -52,7 +53,8 @@ const App: React.FC = () => {
   const { tasks, addTask, updateTask, deleteTask, setTasks } = useTasks();
   const { emailTemplates, addEmailTemplate, updateEmailTemplate, deleteEmailTemplate, setEmailTemplates } = useEmailTemplates();
   const { activityLogs, addActivityLog, setActivityLogs } = useActivityLogs();
-  const { productivityPages, addPage, updatePage, deletePage, setProductivityPages } = useProductivityPages();
+
+
 
   // Local UI State
   const [commonTags, setCommonTags] = useState<string[]>([]);
@@ -71,7 +73,7 @@ const App: React.FC = () => {
 
   // Quick Action Modals State
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
-  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
 
@@ -119,11 +121,12 @@ const App: React.FC = () => {
       setExpenses([]);
       setEmailTemplates([]);
       setActivityLogs([]);
-      setProductivityPages([]);
+
       setTasks([]);
+
       setCommonTags([]);
     }
-  }, [session, setCustomers, setDocuments, setEvents, setExpenses, setEmailTemplates, setActivityLogs, setProductivityPages, setTasks]);
+  }, [session, setCustomers, setDocuments, setEvents, setExpenses, setEmailTemplates, setActivityLogs, setTasks]);
 
   const customersWithLogs = useMemo(() => {
     return customers.map((customer) => ({
@@ -205,14 +208,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleQuickAddNote = async (title: string, icon: string) => {
-    try {
-      await addPage({ title, icon });
-      setToast({ message: 'Note created successfully!', type: 'success' });
-    } catch (e: any) {
-      setToast({ message: `Error creating note: ${e.message}`, type: 'error' });
-    }
-  };
+
 
   const handleQuickSendEmail = (to: string, subject: string, body: string) => {
     // Mock send
@@ -269,12 +265,20 @@ const App: React.FC = () => {
                   <Dashboard
                     documents={documents}
                     editDocument={handleEditDocument}
-                    pages={productivityPages}
+
                     activityLogs={activityLogs}
                     customers={customers}
                     addActivityLog={addActivityLog}
                     expenses={expenses}
                     tasks={tasks}
+                    events={events}
+                    onCreateInvoice={() => navigate('/editor')}
+                    onSendEmail={() => setIsEmailModalOpen(true)}
+                    onCreateMeeting={() => navigate('/calendar')}
+                    onInviteUser={() => setToast({ message: 'Invite feature coming soon!', type: 'success' })}
+                    onAddCustomer={() => setIsCustomerModalOpen(true)}
+                    onLogExpense={() => openExpenseModal()}
+                    onAddTask={() => setIsGoalModalOpen(true)}
                   />
                 }
               />
@@ -370,31 +374,8 @@ const App: React.FC = () => {
                   />
                 }
               />
-              <Route
-                path="/projects"
-                element={
-                  <Projects />
-                }
-              />
-              <Route
-                path="/productivity"
-                element={<Navigate to="/productivity-hub" replace />}
-              />
-              <Route
-                path="/productivity-hub"
-                element={
-                  <ProductivityHub
-                    pages={productivityPages}
-                    customers={customers}
-                    documents={documents}
-                    updateDocument={handleUpdateDocument}
-                    addPage={addPage}
-                    updatePage={updatePage}
-                    deletePage={deletePage}
-                    openExpenseModal={openExpenseModal}
-                  />
-                }
-              />
+
+
               <Route
                 path="/settings"
                 element={
@@ -449,11 +430,7 @@ const App: React.FC = () => {
             customerToEdit={null}
           />
 
-          <AddNoteModal
-            isOpen={isNoteModalOpen}
-            onClose={() => setIsNoteModalOpen(false)}
-            onSave={handleQuickAddNote}
-          />
+
 
           <EmailModal
             isOpen={isEmailModalOpen}
@@ -471,7 +448,7 @@ const App: React.FC = () => {
           {/* Quick Actions Floating Button */}
           <QuickActions
             onAddCustomer={() => setIsCustomerModalOpen(true)}
-            onAddNote={() => setIsNoteModalOpen(true)}
+
             onSendEmail={() => setIsEmailModalOpen(true)}
             onSetGoal={() => setIsGoalModalOpen(true)}
           />

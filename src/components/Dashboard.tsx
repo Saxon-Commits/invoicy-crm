@@ -3,15 +3,19 @@ import {
   Document,
   DocumentStatus,
   DocumentType,
-  ProductivityPage,
   ActivityLog,
   Customer,
   Expense,
   Task,
+  CalendarEvent,
 } from '../types';
 import ActivityLogComponent from './ActivityLog';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import MetricsCards from './dashboard/MetricsCards';
+import ActionCenter from './dashboard/ActionCenter';
+import QuickLinks from './dashboard/QuickLinks';
+import TopCustomers from './dashboard/TopCustomers';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
@@ -23,84 +27,138 @@ const formatCurrency = (amount: number) => {
 const MorningBriefing: React.FC<{
   documents: Document[];
   tasks: Task[];
+  events: CalendarEvent[];
   userName: string;
   onCreateInvoice: () => void;
   onSendEmail: () => void;
   onCreateMeeting: () => void;
   onInviteUser: () => void;
-}> = ({ documents, tasks, userName, onCreateInvoice, onSendEmail, onCreateMeeting, onInviteUser }) => {
+}> = ({ documents, tasks, events, userName, onCreateInvoice, onSendEmail, onCreateMeeting, onInviteUser }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+
+  // Derived Data
   const overdueInvoices = documents.filter(d => d.type === DocumentType.Invoice && d.status === DocumentStatus.Overdue).length;
+
+  const today = new Date().toISOString().split('T')[0];
+
   const tasksDueToday = tasks.filter(t => {
     if (!t.due_date || t.completed) return false;
-    const today = new Date().toISOString().split('T')[0];
     return t.due_date === today;
-  }).length;
+  });
+
+  const todaysEvents = events
+    .filter(e => e.start_time.startsWith(today))
+    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
   return (
     <div
       className="relative h-48 z-10"
       onMouseLeave={() => setIsExpanded(false)}
     >
-      <div className={`absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary-600 to-primary-800 text-white p-6 rounded-xl shadow-lg overflow-hidden transition-all duration-300 ease-out ${isExpanded ? 'w-[120%] h-[140%] z-50 shadow-2xl' : ''}`}>
+      <div className={`absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary-600 to-primary-800 text-white p-6 rounded-xl shadow-lg overflow-hidden transition-all duration-500 ease-out ${isExpanded ? 'w-[150%] h-[200%] z-50 shadow-2xl' : ''}`}>
         <div className="relative z-10 flex flex-col h-full">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Good morning, {userName}</h2>
-            <p className={`text-primary-100 mb-6 transition-all ${isExpanded ? 'mb-4' : ''}`}>Here's what's happening today:</p>
+          {/* Header Section */}
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-2xl font-bold mb-1">Good morning, {userName}</h2>
+              <p className="text-primary-100 text-sm">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+            </div>
           </div>
 
-          <div className={`flex gap-6 transition-opacity duration-200 ${isExpanded ? 'opacity-0 hidden' : 'opacity-100'}`}>
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          {/* Collapsed View Content */}
+          <div className={`mt-6 flex gap-4 transition-opacity duration-300 ${isExpanded ? 'opacity-0 hidden' : 'opacity-100'}`}>
+            <div className="flex items-center gap-3 bg-white/10 p-3 rounded-lg backdrop-blur-sm">
+              <div className="bg-white/20 p-2 rounded-md">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
               <div>
-                <p className="text-2xl font-bold">{overdueInvoices}</p>
-                <p className="text-xs text-primary-200">Overdue Invoices</p>
+                <p className="text-xl font-bold">{todaysEvents.length}</p>
+                <p className="text-xs text-primary-200">Events Today</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="flex items-center gap-3 bg-white/10 p-3 rounded-lg backdrop-blur-sm">
+              <div className="bg-white/20 p-2 rounded-md">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
               </div>
               <div>
-                <p className="text-2xl font-bold">{tasksDueToday}</p>
-                <p className="text-xs text-primary-200">Tasks Due Today</p>
+                <p className="text-xl font-bold">{tasksDueToday.length}</p>
+                <p className="text-xs text-primary-200">Tasks Due</p>
               </div>
             </div>
           </div>
 
-          {/* Expanded Actions */}
-          <div className={`grid grid-cols-2 gap-3 mt-auto transition-opacity duration-300 delay-75 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden'}`}>
-            <button onClick={onCreateInvoice} className="flex items-center gap-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-left">
-              <div className="p-1.5 bg-white/20 rounded-md">
+          {/* Expanded View Content */}
+          <div className={`mt-6 grid grid-cols-2 gap-6 flex-grow transition-opacity duration-500 delay-100 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden'}`}>
+            {/* Agenda Column */}
+            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm overflow-y-auto custom-scrollbar">
+              <h3 className="text-sm font-semibold text-primary-100 mb-3 uppercase tracking-wider flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Today's Agenda
+              </h3>
+              <div className="space-y-3">
+                {todaysEvents.length > 0 ? (
+                  todaysEvents.map(event => (
+                    <div key={event.id} className="flex gap-3 items-start group">
+                      <div className="w-16 text-xs text-primary-200 pt-1">
+                        {new Date(event.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div className="flex-1 bg-white/5 p-2 rounded border-l-2 border-primary-300 hover:bg-white/10 transition-colors">
+                        <p className="text-sm font-medium">{event.title}</p>
+                        {event.meeting_link && <p className="text-xs text-primary-200 mt-1 truncate">{event.meeting_link}</p>}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-primary-200 italic">No events scheduled for today.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Tasks Column */}
+            <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm overflow-y-auto custom-scrollbar">
+              <h3 className="text-sm font-semibold text-primary-100 mb-3 uppercase tracking-wider flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                Focus List
+              </h3>
+              <div className="space-y-2">
+                {tasksDueToday.length > 0 ? (
+                  tasksDueToday.map(task => (
+                    <div key={task.id} className="flex items-center gap-3 p-2 rounded hover:bg-white/5 transition-colors">
+                      <div className="w-4 h-4 rounded border border-primary-300 flex items-center justify-center cursor-pointer hover:bg-primary-500/20"></div>
+                      <span className="text-sm">{task.text}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-primary-200 italic">No tasks due today. Great job!</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Expanded Actions Toolbar */}
+          <div className={`mt-auto pt-4 border-t border-white/10 flex justify-between items-center transition-opacity duration-300 delay-200 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden'}`}>
+            <div className="flex gap-2">
+              <button onClick={onCreateInvoice} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-xs font-medium flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              </div>
-              <span className="text-sm font-medium">Create Invoice</span>
-            </button>
-            <button onClick={onSendEmail} className="flex items-center gap-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-left">
-              <div className="p-1.5 bg-white/20 rounded-md">
+                Invoice
+              </button>
+              <button onClick={onSendEmail} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-xs font-medium flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-              </div>
-              <span className="text-sm font-medium">Send Email</span>
-            </button>
-            <button onClick={onCreateMeeting} className="flex items-center gap-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-left">
-              <div className="p-1.5 bg-white/20 rounded-md">
+                Email
+              </button>
+              <button onClick={onCreateMeeting} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-xs font-medium flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-              </div>
-              <span className="text-sm font-medium">Schedule Meeting</span>
-            </button>
-            <button onClick={onInviteUser} className="flex items-center gap-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-left">
-              <div className="p-1.5 bg-white/20 rounded-md">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-              </div>
-              <span className="text-sm font-medium">Invite User</span>
-            </button>
+                Meeting
+              </button>
+            </div>
+            <div className="text-xs text-primary-200">
+              {overdueInvoices > 0 && <span className="text-red-300 font-bold">{overdueInvoices} Overdue Invoices</span>}
+            </div>
           </div>
         </div>
 
@@ -252,31 +310,39 @@ const FinancialPulse: React.FC<{
 interface DashboardProps {
   documents: Document[];
   editDocument: (doc: Document) => void;
-  pages: ProductivityPage[];
+
   activityLogs: ActivityLog[];
   customers: Customer[];
   addActivityLog: (activity: Omit<ActivityLog, 'id' | 'created_at' | 'user_id'>) => void;
   expenses: Expense[];
   tasks: Task[];
+  events: CalendarEvent[];
   onCreateInvoice: () => void;
   onSendEmail: () => void;
   onCreateMeeting: () => void;
   onInviteUser: () => void;
+  onAddCustomer: () => void;
+  onLogExpense: () => void;
+  onAddTask: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
   documents,
   editDocument,
-  pages,
+
   activityLogs,
   customers,
   addActivityLog,
   expenses,
   tasks,
+  events,
   onCreateInvoice,
   onSendEmail,
   onCreateMeeting,
   onInviteUser,
+  onAddCustomer,
+  onLogExpense,
+  onAddTask,
 }) => {
   // Get the most recent 15 logs for the dashboard
   const recentActivity = useMemo(() => {
@@ -293,6 +359,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <MorningBriefing
             documents={documents}
             tasks={tasks}
+            events={events}
             userName="Saxon"
             onCreateInvoice={onCreateInvoice}
             onSendEmail={onSendEmail}
@@ -301,6 +368,23 @@ const Dashboard: React.FC<DashboardProps> = ({
           />
         </div>
         <div className="lg:col-span-2 relative z-10">
+          <MetricsCards documents={documents} customers={customers} />
+        </div>
+      </div>
+
+      {/* Middle Row: Action Center, Quick Links, Top Customers */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ActionCenter documents={documents} tasks={tasks} onEditDocument={editDocument} />
+        <div className="space-y-6">
+          <QuickLinks
+            onCreateInvoice={onCreateInvoice}
+            onAddCustomer={onAddCustomer}
+            onLogExpense={onLogExpense}
+            onAddTask={onAddTask}
+          />
+          <TopCustomers documents={documents} customers={customers} />
+        </div>
+        <div className="h-full">
           <FinancialPulse documents={documents} expenses={expenses} />
         </div>
       </div>

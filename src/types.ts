@@ -157,35 +157,7 @@ export interface Expense {
   created_at: string;
 }
 
-// ----- PRODUCTIVITY HUB V2 TYPES -----
 
-export interface TableBlock {
-  id: string;
-  type: 'table';
-  data: string[][];
-}
-
-export interface ChartBlock {
-  id: string;
-  type: 'chart';
-  chartType: 'bar' | 'pie';
-  data: { label: string; value: number }[];
-}
-
-export type PageBlock = TableBlock | ChartBlock;
-
-export interface ProductivityPage {
-  id: string;
-  user_id: string;
-  title: string;
-  icon?: string | null;
-  content: any; // Storing rich text content as JSON from an editor like TipTap
-  blocks: PageBlock[];
-  customer_id?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-// ----- END PRODUCTIVITY HUB V2 -----
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -205,40 +177,4 @@ export interface ColorTheme {
   swatchColor: string;
 }
 
-// ----- PROJECTS TYPES -----
-export interface ProjectLink {
-  id: string;
-  label: string;
-  url: string;
-}
 
-export interface ProjectChecklistItem {
-  id: string;
-  text: string;
-  completed: boolean;
-}
-
-export interface Project {
-  id: string;
-  user_id: string;
-  // Step 1: What
-  name: string;
-  description: string;
-  goals: string;
-
-  // Step 2: How
-  tech_stack: string[];
-  tools: string[];
-
-  // Step 3: When
-  start_date: string;
-  end_date?: string;
-  status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold';
-
-  // Step 4: Track
-  notes: string;
-  links: ProjectLink[];
-  checklist: ProjectChecklistItem[];
-
-  created_at: string;
-}
