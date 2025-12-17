@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Document, DocumentStatus, DocumentType, CompanyInfo, Customer } from '../types';
-import { useTextDocuments } from '../hooks/useTextDocuments';
+
 import { supabase } from '../supabaseClient';
 import ProposalWizard, { ProposalBundle } from './ProposalWizard';
 import EmailProposalModal, { EmailData } from './EmailProposalModal';
@@ -18,7 +18,7 @@ interface FilesProps {
     onAddCustomer: () => void;
 }
 
-type FileType = 'Invoice' | 'Quote' | 'Proposal' | 'Contract' | 'SLA' | 'Image' | 'Document';
+type FileType = 'Invoice' | 'Quote' | 'Proposal' | 'Contract' | 'SLA';
 
 interface UnifiedFile {
     id: string;
@@ -33,25 +33,6 @@ interface UnifiedFile {
 
 const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, updateDocument, deleteDocument, bulkDeleteDocuments, searchTerm, onCreateNew, onAddCustomer }) => {
     const navigate = useNavigate();
-    const { textDocuments, deleteTextDocument, refreshTextDocuments } = useTextDocuments();
-    const [activeFilter, setActiveFilter] = useState<FileType | 'All'>('All');
-    const [sortOption, setSortOption] = useState<'Date' | 'Name' | 'Amount'>('Date');
-    const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-    const [isWizardOpen, setIsWizardOpen] = useState(false);
-    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
-    const [currentBundle, setCurrentBundle] = useState<ProposalBundle | null>(null);
-
-    // ... (keep existing customers memo)
-    const customers = useMemo(() => {
-        const uniqueCustomers = new Map<string, Customer>();
-        (documents || []).forEach(doc => {
-            if (doc.customer) {
-                uniqueCustomers.set(doc.customer.id, doc.customer);
-            }
-        });
-        return Array.from(uniqueCustomers.values());
-    }, [documents]);
-
     // Unified Data Transformation
     const allFiles: UnifiedFile[] = useMemo(() => {
         const docs: UnifiedFile[] = (documents || []).map(d => ({
@@ -65,27 +46,13 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
             originalObject: d,
         }));
 
-        // Placeholder for Images (Expenses with receipts) - assuming we might get them later
-        // const imageFiles: UnifiedFile[] = ...
-
-        const textDocs: UnifiedFile[] = (textDocuments || []).map(d => ({
-            id: d.id,
-            type: 'Document',
-            title: d.title,
-            date: d.updated_at || d.created_at,
-            status: undefined,
-            amount: undefined,
-            customerName: undefined,
-            originalObject: d,
-        }));
-
-        return [...docs, ...textDocs].sort((a, b) => {
+        return docs.sort((a, b) => {
             if (sortOption === 'Date') return new Date(b.date).getTime() - new Date(a.date).getTime();
             if (sortOption === 'Name') return a.title.localeCompare(b.title);
             if (sortOption === 'Amount') return (b.amount || 0) - (a.amount || 0);
             return 0;
         });
-    }, [documents, textDocuments, sortOption]);
+    }, [documents, sortOption]);
 
     const filteredFiles = useMemo(() => {
         return allFiles.filter(item => {
@@ -102,8 +69,6 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
     const handleItemClick = (file: UnifiedFile) => {
         if (['Invoice', 'Quote', 'Proposal', 'Contract', 'SLA'].includes(file.type)) {
             editDocument(file.originalObject);
-        } else if (file.type === 'Document') {
-            navigate(`/text-editor/${file.id}`);
         }
     };
 
@@ -142,11 +107,7 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
     const handleDelete = async (file: UnifiedFile, e: React.MouseEvent) => {
         e.stopPropagation();
         if (window.confirm(`Are you sure you want to delete "${file.title}"?`)) {
-            if (file.type === 'Document') {
-                await deleteTextDocument(file.id);
-            } else {
-                deleteDocument(file.id);
-            }
+            deleteDocument(file.id);
         }
     };
 
@@ -241,19 +202,7 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
                         <span className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Standalone Contract Document</span>
                     </button>
 
-                    {/* Text Document (Moved to 3rd slot or kept if space allows, or removed as per request to 'replace') */}
-                    <button
-                        onClick={() => navigate('/text-editor')}
-                        className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md transition-all group"
-                    >
-                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-full text-emerald-600 dark:text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                            </svg>
-                        </div>
-                        <span className="font-medium text-slate-900 dark:text-zinc-100">Document</span>
-                        <span className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Write notes and docs</span>
-                    </button>
+
 
                 </div>
             </section>
@@ -263,7 +212,7 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
                 {/* Header / Filters */}
                 <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
-                        {(['All', 'Invoice', 'Quote', 'Proposal', 'Contract', 'SLA', 'Document', 'Image'] as const).map(filter => (
+                        {(['All', 'Invoice', 'Quote', 'Proposal', 'Contract', 'SLA'] as const).map(filter => (
                             <button
                                 key={filter}
                                 onClick={() => setActiveFilter(filter)}
@@ -330,7 +279,6 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
                                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
                                                 ${file.type === 'Invoice' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : ''}
                                                 ${file.type === 'Quote' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : ''}
-                                                ${file.type === 'Document' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' : ''}
                                             `}>
                                                 {file.type}
                                             </span>

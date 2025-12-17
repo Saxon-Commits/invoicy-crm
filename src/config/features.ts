@@ -1,6 +1,6 @@
 
 export const FEATURES = {
-    ENABLE_FILES: false,
+    ENABLE_FILES: true,
     ENABLE_BILLS: false,
     ENABLE_CALENDAR_SIDEBAR: false,
     ENABLE_KANBAN: false,
