@@ -33,6 +33,22 @@ interface UnifiedFile {
 
 const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, updateDocument, deleteDocument, bulkDeleteDocuments, searchTerm, onCreateNew, onAddCustomer }) => {
     const navigate = useNavigate();
+    const [activeFilter, setActiveFilter] = useState<FileType | 'All'>('All');
+    const [sortOption, setSortOption] = useState<'Date' | 'Name' | 'Amount'>('Date');
+    const [isWizardOpen, setIsWizardOpen] = useState(false);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [currentBundle, setCurrentBundle] = useState<ProposalBundle | null>(null);
+
+    const customers = useMemo(() => {
+        const uniqueCustomers = new Map<string, Customer>();
+        (documents || []).forEach(doc => {
+            if (doc.customer) {
+                uniqueCustomers.set(doc.customer.id, doc.customer);
+            }
+        });
+        return Array.from(uniqueCustomers.values());
+    }, [documents]);
+
     // Unified Data Transformation
     const allFiles: UnifiedFile[] = useMemo(() => {
         const docs: UnifiedFile[] = (documents || []).map(d => ({
