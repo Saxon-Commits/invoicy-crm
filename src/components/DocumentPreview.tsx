@@ -1,6 +1,7 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Document, CompanyInfo, DocumentItem, DocumentType, Profile, DocumentStatus } from '../types';
+import PaginatedContent from './PaginatedContent';
 
 interface PreviewProps {
   document: Document;
@@ -22,127 +23,217 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    return (
+      <div className="mx-auto" style={{ width: '794px' }}>
+        <PaginatedContent content={document.content || ''} />
+
+        {/* Signature Section - appended to the last page or separate if needed. 
+                For now, PaginatedContent handles the content splitting. 
+                If we want the signature to be part of the flow, it should ideally be part of the HTML content.
+                However, since signature is a separate UI element here, we might need to append it.
+                The current PaginatedContent doesn't support appending arbitrary React nodes easily.
+                Let's simplify: For proposals, we assume the content includes everything or we render signature after.
+                But rendering after might create a new page or overflow.
+                
+                IMPROVEMENT: We can make PaginatedContent accept children or a footer prop.
+                For this iteration, let's render the signature in a separate A4 page if it doesn't fit, 
+                or just append it and let the user manage spacing via the editor.
+                
+                Actually, the requirement is "don't just extend down".
+                So we should wrap the signature in a page if possible.
+            */}
+        {(document.type === DocumentType.Contract || document.type === DocumentType.SLA || document.type === DocumentType.Proposal) && (
+          <div className="bg-white text-slate-800 p-[40px] font-sans relative shadow-xl mx-auto flex flex-col mt-8" style={{ width: '794px', minHeight: '1123px' }}>
+            <div className="flex-grow"></div>
+            <div className="mt-auto pt-12 border-t border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900 mb-1">Signatures</h3>
+              <div className="grid grid-cols-2 gap-12">
+                <div>
+                  <div className="h-24 flex flex-col justify-end">
+                    <p className="text-sm font-bold text-slate-900 mb-1">{companyInfo.name}</p>
+                    <div className="border-b border-slate-300 w-full mb-2"></div>
+                  </div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Authorized Signature</p>
+                </div>
+                <div>
+                  <div className="h-24 flex flex-col justify-end relative">
+                    {document.signature ? (
+                      <img src={document.signature} alt="Customer Signature" className="h-16 mb-2 object-contain absolute bottom-2 left-0" />
+                    ) : (
+                      <div className="absolute bottom-4 left-0 text-slate-300 text-4xl font-serif italic select-none pointer-events-none">
+                        x <span className="text-sm font-sans not-italic ml-2">Sign Here</span>
+                      </div>
+                    )}
+                    <p className="text-sm font-bold text-slate-900 mb-1">{document.customer?.name}</p>
+                    <div className="border-b border-slate-300 w-full mb-2"></div>
+                  </div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Customer Signature</p>
+                </div>
+              </div>
+            </div>
+            {/* Page Number for Signature Page */}
+            <div className="absolute bottom-4 right-8 text-xs text-slate-400">
+              Signature Page
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // For Invoices/Quotes, we implement simple item pagination
+  const ITEMS_PER_PAGE = 12; // Approximate number of items that fit
+  const pages = [];
+  for (let i = 0; i < items.length; i += ITEMS_PER_PAGE) {
+    pages.push(items.slice(i, i + ITEMS_PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]); // Handle empty items
+
   return (
-    <div className="bg-white text-slate-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col relative">
-      {document.status === DocumentStatus.Paid && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <div
-            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
-          >
-            PAID
+    <div className="flex flex-col gap-8 items-center">
+      {pages.map((pageItems, pageIndex) => (
+        <div key={pageIndex} className="bg-white text-slate-800 p-[40px] font-sans relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', height: '1123px' }}>
+          {document.status === DocumentStatus.Paid && pageIndex === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div
+                className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+              >
+                PAID
+              </div>
+            </div>
+          )}
+
+          {/* Header - Only on first page */}
+          {showHeader && pageIndex === 0 && (
+            <>
+              <header className="flex justify-between items-start pb-8 border-b-2 border-primary-500">
+                <div>
+                  <h1 className="text-4xl font-bold text-primary-600 uppercase tracking-wider">
+                    {document.type}
+                  </h1>
+                  <p className="text-slate-500 mt-1">{document.doc_number || '...'}</p>
+                </div>
+                <div className="text-right">
+                  {companyInfo.logo && (
+                    <img
+                      src={companyInfo.logo}
+                      alt="Company Logo"
+                      className="h-16 w-auto ml-auto mb-4 object-contain"
+                    />
+                  )}
+                  <h2 className="text-2xl font-semibold text-slate-800">{companyInfo.name}</h2>
+                  <p className="text-slate-500 whitespace-pre-wrap">{companyInfo.address}</p>
+                  {companyInfo.abn && <p className="text-slate-500">ABN: {companyInfo.abn}</p>}
+                </div>
+              </header>
+
+              <section className="grid grid-cols-2 gap-8 my-8">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase text-slate-500 tracking-wider mb-2">
+                    Bill To
+                  </h3>
+                  <p className="font-bold text-lg text-primary-700">{document.customer?.name}</p>
+                  <p className="text-slate-600">{document.customer?.address}</p>
+                  <p className="text-slate-600">{document.customer?.email}</p>
+                </div>
+                <div className="text-right">
+                  <p>
+                    <strong className="text-slate-500">Issue Date:</strong> {document.issue_date}
+                  </p>
+                  <p>
+                    <strong className="text-slate-500">{document.type === DocumentType.Quote ? 'Valid To:' : 'Due Date:'}</strong> {document.due_date}
+                  </p>
+                </div>
+              </section>
+            </>
+          )}
+
+          {/* Items Table */}
+          <section className="flex-grow">
+            <table className="w-full text-left">
+              <thead className="bg-primary-500 text-white">
+                <tr>
+                  <th className="p-3 font-semibold uppercase">Description</th>
+                  <th className="p-3 font-semibold uppercase text-center w-24">Qty</th>
+                  <th className="p-3 font-semibold uppercase text-right w-32">Unit Price</th>
+                  <th className="p-3 font-semibold uppercase text-right w-32">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {pageItems.map((item) => (
+                  <tr key={item.id}>
+                    <td className="p-3 whitespace-pre-wrap">{item.description}</td>
+                    <td className="p-3 text-center">{item.quantity}</td>
+                    <td className="p-3 text-right">${item.price.toFixed(2)}</td>
+                    <td className="p-3 text-right">${(item.quantity * item.price).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          {/* Footer - Only on last page */}
+          {showFooter && pageIndex === pages.length - 1 && (
+            <footer className="mt-auto">
+              {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
+                <div className="my-6 text-center">
+                  <a
+                    href={document.stripe_payment_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+                  >
+                    Pay Now
+                  </a>
+                </div>
+              )}
+
+              <section className="flex justify-end mt-8">
+                <div className="w-full sm:w-1/2 space-y-2 text-slate-600">
+                  <div className="flex justify-between">
+                    <p>Subtotal</p>
+                    <p>${document.subtotal.toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <p>Tax ({document.tax}%)</p>
+                    <p>${((document.subtotal * document.tax) / 100).toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between font-bold text-xl text-primary-600 border-t-2 border-primary-500 pt-2">
+                    <p>Total</p>
+                    <p>${document.total.toFixed(2)}</p>
+                  </div>
+                  {document.deposit_amount && document.deposit_amount > 0 && (
+                    <>
+                      <div className="flex justify-between text-slate-500 pt-2">
+                        <p>Deposit Required ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'})</p>
+                        <p>${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
+                      </div>
+                      <div className="flex justify-between font-bold text-lg text-slate-800 border-t border-slate-300 pt-2">
+                        <p>Balance Due</p>
+                        <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </section>
+
+              {document.notes && (
+                <div className="mt-10 pt-5 border-t border-slate-200">
+                  <h3 className="font-semibold text-slate-600">Notes</h3>
+                  <p className="text-sm text-slate-500">{document.notes}</p>
+                </div>
+              )}
+            </footer>
+          )}
+
+          {/* Page Number */}
+          <div className="absolute bottom-4 right-8 text-xs text-slate-400">
+            Page {pageIndex + 1} of {pages.length}
           </div>
         </div>
-      )}
-      {showHeader && (
-        <>
-          <header className="flex justify-between items-start pb-8 border-b-2 border-primary-500">
-            <div>
-              <h1 className="text-4xl font-bold text-primary-600 uppercase tracking-wider">
-                {document.type}
-              </h1>
-              {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-slate-500 mt-1">{document.doc_number || '...'}</p>
-            </div>
-            <div className="text-right">
-              {companyInfo.logo && (
-                <img
-                  src={companyInfo.logo}
-                  alt="Company Logo"
-                  className="h-16 w-auto ml-auto mb-4 object-contain"
-                />
-              )}
-              <h2 className="text-2xl font-semibold text-slate-800">{companyInfo.name}</h2>
-              <p className="text-slate-500 whitespace-pre-wrap">{companyInfo.address}</p>
-              {companyInfo.abn && <p className="text-slate-500">ABN: {companyInfo.abn}</p>}
-            </div>
-          </header>
-
-          <section className="grid grid-cols-2 gap-8 my-8">
-            <div>
-              <h3 className="text-sm font-semibold uppercase text-slate-500 tracking-wider mb-2">
-                Bill To
-              </h3>
-              <p className="font-bold text-lg text-primary-700">{document.customer?.name}</p>
-              <p className="text-slate-600">{document.customer?.address}</p>
-              <p className="text-slate-600">{document.customer?.email}</p>
-            </div>
-            <div className="text-right">
-              {/* Fix: Changed issueDate to issue_date */}
-              <p>
-                <strong className="text-slate-500">Issue Date:</strong> {document.issue_date}
-              </p>
-              {/* Fix: Changed dueDate to due_date */}
-              <p>
-                <strong className="text-slate-500">{document.type === DocumentType.Quote ? 'Valid To:' : 'Due Date:'}</strong> {document.due_date}
-              </p>
-            </div>
-          </section>
-        </>
-      )}
-
-      <section className="flex-grow">
-        <table className="w-full text-left">
-          <thead className="bg-primary-500 text-white">
-            <tr>
-              <th className="p-3 font-semibold uppercase">Description</th>
-              <th className="p-3 font-semibold uppercase text-center w-24">Qty</th>
-              <th className="p-3 font-semibold uppercase text-right w-32">Unit Price</th>
-              <th className="p-3 font-semibold uppercase text-right w-32">Total</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td className="p-3 whitespace-pre-wrap">{item.description}</td>
-                <td className="p-3 text-center">{item.quantity}</td>
-                <td className="p-3 text-right">${item.price.toFixed(2)}</td>
-                <td className="p-3 text-right">${(item.quantity * item.price).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {showFooter && (
-        <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
-            <div className="my-6 text-center">
-              <a
-                href={document.stripe_payment_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
-              >
-                Pay Now
-              </a>
-            </div>
-          )}
-
-          <section className="flex justify-end mt-8">
-            <div className="w-full sm:w-1/2 space-y-2 text-slate-600">
-              <div className="flex justify-between">
-                <p>Subtotal</p>
-                <p>${document.subtotal.toFixed(2)}</p>
-              </div>
-              <div className="flex justify-between">
-                <p>Tax ({document.tax}%)</p>
-                <p>${((document.subtotal * document.tax) / 100).toFixed(2)}</p>
-              </div>
-              <div className="flex justify-between font-bold text-xl text-primary-600 border-t-2 border-primary-500 pt-2">
-                <p>Total</p>
-                <p>${document.total.toFixed(2)}</p>
-              </div>
-            </div>
-          </section>
-
-          {document.notes && (
-            <div className="mt-10 pt-5 border-t border-slate-200">
-              <h3 className="font-semibold text-slate-600">Notes</h3>
-              <p className="text-sm text-slate-500">{document.notes}</p>
-            </div>
-          )}
-        </footer>
-      )}
+      ))}
     </div>
   );
 };
@@ -156,7 +247,7 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-900 p-4 sm:p-6 lg:p-10 font-serif h-full flex flex-col relative">
+    <div className="bg-white text-gray-900 p-[40px] font-serif relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', minHeight: '1123px' }}>
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -266,6 +357,22 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
                     ${document.total.toFixed(2)}
                   </td>
                 </tr>
+                {document.deposit_amount && document.deposit_amount > 0 && (
+                  <>
+                    <tr>
+                      <td className="p-1 text-right text-gray-600">Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'}):</td>
+                      <td className="p-1 text-right text-gray-600">
+                        ${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="font-bold text-lg">
+                      <td className="p-1 text-right border-t border-gray-400">Balance Due:</td>
+                      <td className="p-1 text-right border-t border-gray-400">
+                        ${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}
+                      </td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </section>
@@ -289,7 +396,7 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-slate-900 text-white p-4 sm:p-6 lg:p-10 font-mono overflow-hidden h-full flex flex-col relative">
+    <div className="bg-slate-900 text-white p-[40px] font-mono overflow-hidden relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', minHeight: '1123px' }}>
       <div className="absolute -top-20 -left-20 w-64 h-64 bg-fuchsia-500/30 rounded-full filter blur-3xl"></div>
       <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-cyan-500/30 rounded-full filter blur-3xl"></div>
       {document.status === DocumentStatus.Paid && (
@@ -395,6 +502,18 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
                 <p>Total</p>
                 <p>${document.total.toFixed(2)}</p>
               </div>
+              {document.deposit_amount && document.deposit_amount > 0 && (
+                <>
+                  <div className="flex justify-between text-slate-400 pt-2">
+                    <p>Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'})</p>
+                    <p className="text-white">${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between font-bold text-2xl text-fuchsia-400 border-t border-slate-700 pt-2">
+                    <p>Balance</p>
+                    <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
+                  </div>
+                </>
+              )}
             </div>
           </section>
           {document.notes && (
@@ -417,7 +536,7 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-light font-sans h-full flex flex-col relative">
+    <div className="bg-white text-gray-800 p-[40px] font-light font-sans relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', minHeight: '1123px' }}>
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -533,6 +652,18 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
                 <p>Total</p>
                 <p>${document.total.toFixed(2)}</p>
               </div>
+              {document.deposit_amount && document.deposit_amount > 0 && (
+                <>
+                  <div className="flex justify-between text-gray-500 pt-2">
+                    <p>Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'})</p>
+                    <p>${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between font-medium text-lg text-black border-t border-gray-300 pt-2">
+                    <p>Balance</p>
+                    <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
+                  </div>
+                </>
+              )}
             </div>
           </section>
           {document.notes && (
@@ -555,7 +686,7 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-900 font-sans h-full flex flex-col relative">
+    <div className="bg-white text-gray-900 font-sans relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', minHeight: '1123px' }}>
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -667,6 +798,18 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
                 <p>Total</p>
                 <p>${document.total.toFixed(2)}</p>
               </div>
+              {document.deposit_amount && document.deposit_amount > 0 && (
+                <>
+                  <div className="flex justify-between mt-2 px-4">
+                    <p>Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'})</p>
+                    <p>${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg text-gray-900 border-t-2 border-gray-900 mt-2 pt-2 px-4">
+                    <p>Balance Due</p>
+                    <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
+                  </div>
+                </>
+              )}
             </div>
           </section>
           {document.notes && (
@@ -689,7 +832,7 @@ const TemplateRetro: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-[#fdf6e3] text-[#586e75] p-4 sm:p-6 lg:p-10 font-mono h-full flex flex-col relative">
+    <div className="bg-[#fdf6e3] text-[#586e75] p-[40px] font-mono relative shadow-xl mx-auto" style={{ width: '794px', minHeight: '1123px' }}>
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -784,6 +927,18 @@ const TemplateRetro: React.FC<ExtendedPreviewProps> = ({
                 <p>TOTAL:</p>
                 <p>${document.total.toFixed(2)}</p>
               </div>
+              {document.deposit_amount && document.deposit_amount > 0 && (
+                <>
+                  <div className="flex justify-between p-1 text-[#b58900]">
+                    <p>DEPOSIT ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'FIXED'}):</p>
+                    <p>${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between p-1 font-bold text-lg border-t border-dashed border-[#93a1a1] mt-1 text-[#cb4b16]">
+                    <p>BALANCE:</p>
+                    <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
+                  </div>
+                </>
+              )}
             </div>
           </section>
           {document.notes && (
@@ -1521,6 +1676,132 @@ const templates: { [key: string]: React.FC<ExtendedPreviewProps> } = {
   swiss: TemplateSwiss,
 };
 
+const TemplateDocument: React.FC<ExtendedPreviewProps> = ({
+  document,
+  companyInfo,
+  items,
+  showHeader,
+  showFooter,
+  profile,
+}) => {
+  return (
+    <div id="document-preview-content" className="bg-white text-slate-800 p-8 sm:p-12 font-sans h-full flex flex-col relative max-w-4xl mx-auto shadow-sm">
+      {document.status === DocumentStatus.Signed && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          <div className="text-8xl font-black text-blue-500/20 border-8 border-blue-500/20 rounded-full px-8 py-4 transform -rotate-12">
+            SIGNED
+          </div>
+        </div>
+      )}
+
+      {showHeader && (
+        <header className="flex justify-between items-start mb-12 border-b border-slate-200 pb-8">
+          <div>
+            {companyInfo.logo && (
+              <img src={companyInfo.logo} alt="Company Logo" className="h-12 w-auto mb-4 object-contain" />
+            )}
+            <h2 className="text-xl font-bold text-slate-900">{companyInfo.name}</h2>
+            <p className="text-slate-500 text-sm mt-1 whitespace-pre-wrap">{companyInfo.address}</p>
+          </div>
+          <div className="text-right">
+            <h1 className="text-3xl font-bold text-slate-900 uppercase tracking-tight">{document.type}</h1>
+            <div className="mt-2 text-sm text-slate-500">
+              <p>Reference: <span className="font-medium text-slate-900">{document.doc_number}</span></p>
+              <p>Date: <span className="font-medium text-slate-900">{document.issue_date}</span></p>
+              <p>Valid Until: <span className="font-medium text-slate-900">{document.due_date}</span></p>
+            </div>
+          </div>
+        </header>
+      )}
+
+      <div className="mb-8">
+        <h3 className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Prepared For</h3>
+        <div className="text-slate-900">
+          <p className="font-bold text-lg">{document.customer?.name}</p>
+          <p className="text-slate-600">{document.customer?.company_name}</p>
+          <p className="text-slate-600">{document.customer?.address}</p>
+        </div>
+      </div>
+
+      <div className="prose prose-slate max-w-none mb-12">
+        {document.content ? (
+          <div dangerouslySetInnerHTML={{ __html: document.content }} />
+        ) : (
+          <p className="text-slate-400 italic">No content added yet.</p>
+        )}
+      </div>
+
+      {/* Optional Items Table for Proposals */}
+      {document.type === DocumentType.Proposal && items.length > 0 && (
+        <div className="mb-12">
+          <h3 className="text-lg font-bold text-slate-900 mb-4">Pricing Estimate</h3>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b-2 border-slate-100">
+                <th className="py-3 font-semibold text-slate-900">Description</th>
+                <th className="py-3 font-semibold text-slate-900 text-right w-32">Amount</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td className="py-3 text-slate-600">
+                    <span className="font-medium text-slate-900">{item.description}</span>
+                    {item.quantity > 1 && <span className="text-xs text-slate-400 ml-2">({item.quantity} x ${item.price})</span>}
+                  </td>
+                  <td className="py-3 text-right text-slate-900 font-medium">${(item.quantity * item.price).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-900">
+                <td className="py-4 font-bold text-slate-900 text-right">Total Estimate</td>
+                <td className="py-4 font-bold text-slate-900 text-right text-xl">${document.total.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* Signature Section */}
+      {(document.type === DocumentType.Contract || document.type === DocumentType.SLA || document.type === DocumentType.Proposal) && (
+        <div className="mt-auto pt-12 border-t border-slate-200 break-inside-avoid">
+          <h3 className="text-lg font-bold text-slate-900 mb-8">Signatures</h3>
+          <div className="grid grid-cols-2 gap-12">
+            <div>
+              <div className="h-24 flex flex-col justify-end">
+                <p className="text-sm font-bold text-slate-900 mb-1">{companyInfo.name}</p>
+                <div className="border-b border-slate-300 w-full mb-2"></div>
+              </div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Authorized Signature</p>
+            </div>
+            <div>
+              <div className="h-24 flex flex-col justify-end relative">
+                {document.signature ? (
+                  <img src={document.signature} alt="Customer Signature" className="h-16 mb-2 object-contain absolute bottom-2 left-0" />
+                ) : (
+                  <div className="absolute bottom-4 left-0 text-slate-300 text-4xl font-serif italic select-none pointer-events-none">
+                    x <span className="text-sm font-sans not-italic ml-2">Sign Here</span>
+                  </div>
+                )}
+                <p className="text-sm font-bold text-slate-900 mb-1">{document.customer?.name}</p>
+                <div className="border-b border-slate-300 w-full mb-2"></div>
+              </div>
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Customer Signature</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFooter && (
+        <footer className="mt-12 pt-8 border-t border-slate-100 text-center text-slate-400 text-sm">
+          <p>{companyInfo.name} &bull; {companyInfo.email}</p>
+        </footer>
+      )}
+    </div>
+  );
+};
+
 const ScaledPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -1569,8 +1850,24 @@ const ScaledPage: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 const DocumentPreview: React.FC<PreviewProps> = ({ document, companyInfo, profile }) => {
-  // Fix: Changed templateId to template_id
-  const SelectedTemplate = templates[document.template_id] || TemplateModern;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  // Simple responsive scaling
+  useLayoutEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const parentWidth = containerRef.current.parentElement?.clientWidth || 0;
+        const baseWidth = 800;
+        const newScale = Math.min(parentWidth / baseWidth, 1);
+        setScale(newScale > 0 ? newScale : 1);
+      }
+    };
+
+    window.addEventListener('resize', updateScale);
+    updateScale();
+    return () => window.removeEventListener('resize', updateScale);
+  }, []);
 
   if (!document.customer) {
     return (
@@ -1582,48 +1879,43 @@ const DocumentPreview: React.FC<PreviewProps> = ({ document, companyInfo, profil
     );
   }
 
-  const ITEMS_PER_FIRST_PAGE = 8;
-  const ITEMS_PER_SUBSEQUENT_PAGE = 15;
+  // Choose template based on ID or Type
+  const isTextDocument = [DocumentType.Proposal, DocumentType.Contract, DocumentType.SLA].includes(document.type);
 
-  if (document.items.length <= ITEMS_PER_FIRST_PAGE) {
-    return (
-      <ScaledPage>
-        <SelectedTemplate
+  let TemplateComponent = TemplateModern;
+  if (isTextDocument) {
+    TemplateComponent = TemplateDocument;
+  } else {
+    TemplateComponent =
+      document.template_id === 'minimalist' ? TemplateMinimalist :
+        document.template_id === 'creative' ? TemplateCreative :
+          document.template_id === 'bold' ? TemplateBold :
+            document.template_id === 'retro' ? TemplateRetro :
+              TemplateModern;
+  }
+
+  return (
+    <div ref={containerRef} className="flex flex-col items-center gap-8 p-4 bg-slate-100 dark:bg-zinc-900/50 min-h-full">
+      <div
+        className="bg-white shadow-lg transition-transform origin-top"
+        style={{
+          width: '100%',
+          maxWidth: '800px',
+          minHeight: '1131px',
+          transform: `scale(${scale})`,
+          marginBottom: `-${(1 - scale) * 1131}px`
+        }}
+      >
+        <TemplateComponent
           document={document}
           companyInfo={companyInfo}
-          profile={profile}
           items={document.items}
           showHeader={true}
           showFooter={true}
+          profile={profile}
         />
-      </ScaledPage>
-    );
-  }
-
-  const firstPageItems = document.items.slice(0, ITEMS_PER_FIRST_PAGE);
-  const remainingItems = document.items.slice(ITEMS_PER_FIRST_PAGE);
-
-  const subsequentPageChunks = [];
-  for (let i = 0; i < remainingItems.length; i += ITEMS_PER_SUBSEQUENT_PAGE) {
-    subsequentPageChunks.push(remainingItems.slice(i, i + ITEMS_PER_SUBSEQUENT_PAGE));
-  }
-  const allChunks = [firstPageItems, ...subsequentPageChunks];
-
-  return (
-    <>
-      {allChunks.map((chunk, index) => (
-        <ScaledPage key={index}>
-          <SelectedTemplate
-            document={document}
-            companyInfo={companyInfo}
-            profile={profile}
-            items={chunk}
-            showHeader={index === 0}
-            showFooter={index === allChunks.length - 1}
-          />
-        </ScaledPage>
-      ))}
-    </>
+      </div>
+    </div>
   );
 };
 

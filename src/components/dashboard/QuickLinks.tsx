@@ -5,6 +5,7 @@ interface QuickLinksProps {
     onAddCustomer: () => void;
     onLogExpense: () => void;
     onAddTask: () => void;
+    onAddTask: () => void;
 }
 
 const QuickLinks: React.FC<QuickLinksProps> = ({
@@ -24,6 +25,7 @@ const QuickLinks: React.FC<QuickLinksProps> = ({
             ),
             color: 'bg-indigo-500',
         },
+
         {
             label: 'Add Customer',
             action: onAddCustomer,
@@ -59,7 +61,7 @@ const QuickLinks: React.FC<QuickLinksProps> = ({
     return (
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800 h-full">
             <h3 className="text-lg font-bold text-slate-800 dark:text-zinc-100 mb-4">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {links.map((link, index) => (
                     <button
                         key={index}

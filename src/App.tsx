@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import {
   Customer,
   Document,
+  DocumentType,
   Expense,
 } from './types';
 import { THEMES } from './constants';
@@ -11,13 +12,17 @@ import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import CrmView from './components/CrmView';
 import DocumentEditor from './components/DocumentEditor';
+import ProposalEditor from './components/ProposalEditor';
+import TextDocumentEditor from './components/TextDocumentEditor';
 
 import BillsAndExpenses, { ExpenseModal } from './components/BillsAndExpenses';
 import Calendar from './components/Calendar';
 import Settings from './components/Settings';
-import NewDocument from './components/NewDocument';
+
 import CustomerDetail from './components/CustomerDetail';
 import Files from './components/Files';
+// import { DocumentsPage } from './pages/DocumentsPage';
+import CustomerPortal from './pages/CustomerPortal';
 import AuthPage from './components/Auth';
 import { useAuth } from './AuthContext';
 
@@ -52,6 +57,7 @@ const App: React.FC = () => {
   const { events, addEvent, updateEvent, deleteEvent, setEvents } = useCalendarEvents();
   const { tasks, addTask, updateTask, deleteTask, setTasks } = useTasks();
   const { emailTemplates, addEmailTemplate, updateEmailTemplate, deleteEmailTemplate, setEmailTemplates } = useEmailTemplates();
+
   const { activityLogs, addActivityLog, setActivityLogs } = useActivityLogs();
 
 
@@ -153,7 +159,11 @@ const App: React.FC = () => {
   const handleEditDocument = (doc: Document) => {
     setDocumentToEdit(doc);
     setIsSidebarVisible(true);
-    navigate('/editor');
+    if (doc.type === DocumentType.Proposal || doc.type === DocumentType.Contract || doc.type === DocumentType.SLA) {
+      navigate('/proposal-editor');
+    } else {
+      navigate('/editor');
+    }
   };
 
 
@@ -180,19 +190,23 @@ const App: React.FC = () => {
   // Wrappers for addDocument/addBusinessLetter to handle toasts
   const handleAddDocument = async (doc: any) => {
     try {
-      await addDocument(doc);
+      const newDoc = await addDocument(doc);
       setToast({ message: 'Document saved successfully.', type: 'success' });
+      return newDoc;
     } catch (e: any) {
       setToast({ message: `Error saving document: ${e.message}`, type: 'error' });
+      return null;
     }
   };
 
   const handleUpdateDocument = async (doc: Document) => {
     try {
-      await updateDocument(doc);
+      const updatedDoc = await updateDocument(doc);
       setToast({ message: 'Document updated successfully.', type: 'success' });
+      return updatedDoc;
     } catch (e: any) {
       setToast({ message: `Error updating document: ${e.message}`, type: 'error' });
+      return null;
     }
   };
 
@@ -229,6 +243,7 @@ const App: React.FC = () => {
     return (
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/p/:id" element={<CustomerPortal />} />
         <Route path="*" element={<Navigate to="/auth" />} />
       </Routes>
     );
@@ -282,13 +297,14 @@ const App: React.FC = () => {
                   />
                 }
               />
+
               <Route
                 path="/crm"
                 element={
                   <CrmView
                     customers={customersWithLogs}
                     documents={documents}
-                    addCustomer={addCustomer}
+                    addCustomer={handleQuickAddCustomer}
                     updateCustomer={updateCustomer}
                     deleteCustomer={deleteCustomer}
                     commonTags={commonTags}
@@ -325,9 +341,12 @@ const App: React.FC = () => {
                     deleteDocument={deleteDocument}
                     bulkDeleteDocuments={bulkDeleteDocuments}
                     searchTerm={globalSearchTerm}
+                    onCreateNew={clearActiveDocuments}
+                    onAddCustomer={() => setIsCustomerModalOpen(true)}
                   />
                 }
               />
+              {/* <Route path="/documents" element={<DocumentsPage />} /> */}
               <Route
                 path="/editor"
                 element={
@@ -342,6 +361,23 @@ const App: React.FC = () => {
                   />
                 }
               />
+              <Route
+                path="/proposal-editor"
+                element={
+                  <ProposalEditor
+                    customers={customers}
+                    addDocument={handleAddDocument}
+                    updateDocument={handleUpdateDocument}
+                    deleteDocument={deleteDocument}
+                    documentToEdit={documentToEdit}
+                    companyInfo={companyInfo}
+                    expenses={expenses}
+                    onAddCustomer={() => setIsCustomerModalOpen(true)}
+                  />
+                }
+              />
+              <Route path="/text-editor" element={<TextDocumentEditor />} />
+              <Route path="/text-editor/:id" element={<TextDocumentEditor />} />
 
               <Route
                 path="/expenses"
@@ -382,6 +418,7 @@ const App: React.FC = () => {
                   <Settings
                     companyInfo={companyInfo}
                     setCompanyInfo={setCompanyInfo}
+                    updateProfile={updateProfile}
                     theme={theme}
                     setTheme={handleSetTheme}
                     emailTemplates={emailTemplates}
@@ -392,6 +429,7 @@ const App: React.FC = () => {
                   />
                 }
               />
+              <Route path="/p/:id" element={<CustomerPortal />} />
             </Routes>
           </main>
 

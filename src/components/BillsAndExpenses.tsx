@@ -394,8 +394,7 @@ const BillsAndExpenses: React.FC<BillsAndExpensesProps> = ({
 
   return (
     <div className="space-y-6 h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-zinc-100">Bills & Expenses</h1>
+      <div className="flex justify-end items-center gap-4">
         <button
           onClick={handleAdd}
           className="bg-primary-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-primary-700 flex items-center gap-2"

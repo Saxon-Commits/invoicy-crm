@@ -5,6 +5,8 @@ import { TEMPLATES } from '../constants';
 import DocumentPreview from './DocumentPreview';
 import { generatePdf } from '../pdfGenerator';
 import { useAutoSave, loadAutoSavedDraft, clearAutoSavedDraft } from '../hooks/useAutoSave';
+import { downloadElementAsPdf } from '../pdfUtils';
+import ScaledPreviewWrapper from './ScaledPreviewWrapper';
 
 interface DocumentEditorProps {
     customers: Customer[];
@@ -14,6 +16,8 @@ interface DocumentEditorProps {
     documentToEdit: Document | null;
     companyInfo: CompanyInfo;
     expenses: Expense[];
+    isEmbedded?: boolean;
+    onExternalSave?: (doc: NewDocumentData | Document) => void;
 }
 
 const AUTO_SAVE_KEY = 'autosave-document-draft';
@@ -97,7 +101,7 @@ const UnbilledExpensesModal: React.FC<{
     );
 };
 
-const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument, updateDocument, deleteDocument, documentToEdit, companyInfo, expenses }) => {
+const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument, updateDocument, deleteDocument, documentToEdit, companyInfo, expenses, isEmbedded, onExternalSave }) => {
     const navigate = useNavigate();
     const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor');
     const [doc, setDoc] = useState<NewDocumentData | Document>(() => getInitialState(customers));
@@ -108,33 +112,32 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
 
     const isEditMode = useMemo(() => documentToEdit !== null && 'id' in doc, [documentToEdit, doc]);
 
+    // Auto-save hook
+    useAutoSave(AUTO_SAVE_KEY, doc);
+
     // Effect for initializing the form state
     useEffect(() => {
-        if (documentToEdit) {
-            setDoc(documentToEdit);
-        } else {
-            // Check for an auto-saved draft only when creating a new document
-            const draft = loadAutoSavedDraft<NewDocumentData>(AUTO_SAVE_KEY);
-            if (draft) {
-                // Ensure customer data is not stale
-                const currentCustomer = customers.find(c => c.id === draft.customer?.id);
-                if (currentCustomer) {
-                    draft.customer = currentCustomer;
-                } else if (customers.length > 0) {
-                    draft.customer = customers[0]; // Fallback if original customer was deleted
-                } else {
-                    draft.customer = null;
-                }
-                setRecoveredDraft(draft);
+        const loadDraft = () => {
+            const savedDraft = loadAutoSavedDraft<NewDocumentData>(AUTO_SAVE_KEY);
+            if (savedDraft) {
+                setRecoveredDraft(savedDraft);
                 setShowRecoveryModal(true);
-            } else {
-                setDoc(getInitialState(customers));
             }
+        };
+
+        if (documentToEdit) {
+            // If editing an existing document, load it
+            // Ensure we merge with default structure to avoid missing fields
+            setDoc({
+                ...getInitialState(customers),
+                ...documentToEdit,
+                items: documentToEdit.items.map(i => ({ ...i, id: i.id || `item-${Date.now()}-${Math.random()}` }))
+            } as NewDocumentData | Document);
+        } else {
+            // If creating new, check for draft
+            loadDraft();
         }
     }, [documentToEdit, customers]);
-
-    // Auto-save the document state if it's a new document
-    useAutoSave(AUTO_SAVE_KEY, !isEditMode ? doc : null, 3000);
 
     const unbilledExpenses = useMemo(() => {
         if (!doc.customer) return [];
@@ -151,12 +154,37 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
         return baseDoc as Document;
     }, [doc]);
 
+    // Calculate totals whenever items or tax changes
     useEffect(() => {
-        const subtotal = doc.items.reduce((acc, item) => acc + item.quantity * item.price, 0);
-        const taxAmount = subtotal * (doc.tax / 100);
-        const total = subtotal + taxAmount;
-        setDoc(prev => ({ ...prev, subtotal, total }));
-    }, [doc.items, doc.tax]);
+        const subtotal = doc.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+        const total = subtotal + (subtotal * (doc.tax / 100));
+
+        // Only update if values actually changed to avoid infinite loops
+        if (Math.abs(doc.subtotal - subtotal) > 0.01 || Math.abs(doc.total - total) > 0.01) {
+            setDoc(prev => ({ ...prev, subtotal, total }));
+        }
+    }, [doc.items, doc.tax, doc.subtotal, doc.total]);
+
+    // ... (keep existing handleSave)
+    const handleSave = () => {
+        if (!doc.customer) {
+            alert("Please select a customer.");
+            return;
+        }
+
+        if (isEmbedded && onExternalSave) {
+            onExternalSave(doc);
+            return;
+        }
+
+        if (isEditMode) {
+            updateDocument(doc as Document);
+        } else {
+            addDocument(doc as NewDocumentData);
+            clearAutoSavedDraft(AUTO_SAVE_KEY);
+        }
+        navigate('/files');
+    };
 
     const handleCustomerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const selectedCustomer = customers.find(c => c.id === e.target.value);
@@ -194,37 +222,41 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
         setDoc(prev => ({ ...prev, items: [...prev.items, ...newItems] }));
     };
 
-    const handleSave = () => {
-        if (!doc.customer) {
-            alert("Please select a customer.");
-            return;
-        }
-        if (isEditMode) {
-            updateDocument(doc as Document);
+    const handleDownloadPdf = async () => {
+        if ([DocumentType.Contract, DocumentType.SLA, DocumentType.Proposal].includes(doc.type)) {
+            const docNumber = 'doc_number' in doc ? doc.doc_number : 'draft';
+            await downloadElementAsPdf('document-preview-content', `${doc.type}-${docNumber}.pdf`);
         } else {
-            addDocument(doc as NewDocumentData);
-            clearAutoSavedDraft(AUTO_SAVE_KEY);
+            generatePdf(currentDocument, companyInfo);
         }
-        navigate('/files');
-    };
-
-    const handleDownloadPdf = () => {
-        generatePdf(currentDocument, companyInfo);
     };
 
     const handleShare = async () => {
-        if (!navigator.share) {
-            alert('Sharing is not supported on this browser.');
+        if (!currentDocument.id || currentDocument.id === 'preview-id') {
+            alert('Please save the document first to generate a shareable link.');
             return;
         }
-        try {
-            await navigator.share({
-                title: `${currentDocument.type} ${currentDocument.doc_number}`,
-                text: `Here is the ${currentDocument.type.toLowerCase()} from ${companyInfo.name} for ${currentDocument.customer?.name || 'the client'}.`,
-                url: window.location.href,
-            });
-        } catch (error) {
-            console.error('Error sharing:', error);
+
+        const shareUrl = `${window.location.origin}/#/p/${currentDocument.id}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `${currentDocument.type} ${currentDocument.doc_number}`,
+                    text: `Here is the ${currentDocument.type.toLowerCase()} from ${companyInfo.name} for ${currentDocument.customer?.name || 'the client'}.`,
+                    url: shareUrl,
+                });
+            } catch (error) {
+                console.error('Error sharing:', error);
+            }
+        } else {
+            try {
+                await navigator.clipboard.writeText(shareUrl);
+                alert('Link copied to clipboard!');
+            } catch (err) {
+                console.error('Failed to copy link:', err);
+                prompt('Copy this link:', shareUrl);
+            }
         }
     };
 
@@ -250,26 +282,46 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
         setRecoveredDraft(null);
     };
 
+    const handleNewDocument = () => {
+        if (!currentDocument.id || currentDocument.id === 'preview-id') {
+            if (!window.confirm('You have unsaved changes. Are you sure you want to create a new document? Your changes will be lost.')) {
+                return;
+            }
+        }
+        setDoc(getInitialState(customers));
+        navigate('/editor'); // Ensure URL is clean
+    };
+
     return (
         <div className="flex flex-col h-full">
-            <header className="flex-shrink-0 bg-white dark:bg-zinc-900 p-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-end z-20">
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={handleShare} className="px-3 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
-                        Share
-                    </button>
-                    <button onClick={handleDownloadPdf} className="px-3 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
-                        Download
-                    </button>
-                    {isEditMode && (
-                        <button onClick={() => setIsDeleteModalOpen(true)} className="px-3 py-2 text-sm font-semibold rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
-                            Delete
+            {!isEmbedded && (
+                <header className="flex-shrink-0 bg-white dark:bg-zinc-900 p-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between z-20">
+                    <div className="flex items-center">
+                        <button onClick={handleNewDocument} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            New Invoice
                         </button>
-                    )}
-                    <button onClick={handleSave} className="px-3 py-2 text-sm font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors">
-                        {isEditMode ? 'Update' : 'Save'}
-                    </button>
-                </div>
-            </header>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <button onClick={handleShare} className="px-3 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                            Share
+                        </button>
+                        <button onClick={handleDownloadPdf} className="px-3 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                            Download
+                        </button>
+                        {isEditMode && (
+                            <button onClick={() => setIsDeleteModalOpen(true)} className="px-3 py-2 text-sm font-semibold rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
+                                Delete
+                            </button>
+                        )}
+                        <button onClick={handleSave} className="px-3 py-2 text-sm font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors">
+                            {isEditMode ? 'Update' : 'Save'}
+                        </button>
+                    </div>
+                </header>
+            )}
 
             <div className="flex-1 flex flex-col lg:flex-row gap-8 min-h-0 p-4 sm:p-6 lg:p-8">
                 {/* Mobile View Toggle */}
@@ -434,6 +486,37 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
                                     <input type="number" value={doc.tax} onChange={e => setDoc(p => ({ ...p, tax: parseFloat(e.target.value) || 0 }))} className="w-20 p-1 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-right" />
                                 </div>
                                 <div className="flex justify-between font-bold text-lg border-t pt-2 border-slate-300 dark:border-zinc-700"><span>Total:</span><span>{doc.total.toFixed(2)}</span></div>
+
+                                {/* Deposit Section */}
+                                <div className="border-t border-slate-200 dark:border-zinc-800 pt-2 mt-2">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm font-medium text-slate-600 dark:text-zinc-400">Deposit / Retainer:</span>
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={doc.deposit_type || 'fixed'}
+                                                onChange={e => setDoc(p => ({ ...p, deposit_type: e.target.value as 'fixed' | 'percentage' }))}
+                                                className="p-1 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                            >
+                                                <option value="fixed">$ Fixed</option>
+                                                <option value="percentage">% Percent</option>
+                                            </select>
+                                            <input
+                                                type="number"
+                                                value={doc.deposit_amount || 0}
+                                                onChange={e => setDoc(p => ({ ...p, deposit_amount: parseFloat(e.target.value) || 0 }))}
+                                                className="w-20 p-1 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-right"
+                                            />
+                                        </div>
+                                    </div>
+                                    {doc.deposit_amount && doc.deposit_amount > 0 && (
+                                        <div className="flex justify-between font-bold text-primary-600 dark:text-primary-400">
+                                            <span>Balance Due:</span>
+                                            <span>
+                                                {(doc.total - (doc.deposit_type === 'percentage' ? (doc.total * (doc.deposit_amount / 100)) : doc.deposit_amount)).toFixed(2)}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -463,8 +546,10 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
                 {/* Preview */}
                 <div className={`lg:w-1/2 h-full rounded-xl ${mobileView === 'preview' ? 'block' : 'hidden'} lg:block min-w-0`}>
                     <div className="h-full w-full bg-slate-200 dark:bg-zinc-950 rounded-xl p-2 sm:p-4 overflow-hidden">
-                        <div className="w-full h-full overflow-y-auto overflow-x-hidden">
-                            <DocumentPreview document={currentDocument} companyInfo={companyInfo} profile={null} />
+                        <div className="w-full h-full overflow-hidden">
+                            <ScaledPreviewWrapper>
+                                <DocumentPreview document={currentDocument} companyInfo={companyInfo} profile={null} />
+                            </ScaledPreviewWrapper>
                         </div>
                     </div>
                 </div>

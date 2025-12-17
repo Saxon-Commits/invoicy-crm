@@ -1,6 +1,10 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { Document, DocumentStatus, DocumentType, CompanyInfo } from '../types';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Document, DocumentStatus, DocumentType, CompanyInfo, Customer } from '../types';
+import { useTextDocuments } from '../hooks/useTextDocuments';
+import { supabase } from '../supabaseClient';
+import ProposalWizard, { ProposalBundle } from './ProposalWizard';
+import EmailProposalModal, { EmailData } from './EmailProposalModal';
 
 interface FilesProps {
     documents: Document[];
@@ -10,275 +14,349 @@ interface FilesProps {
     deleteDocument: (docId: string) => void;
     bulkDeleteDocuments: (docIds: string[]) => Promise<void>;
     searchTerm: string;
+    onCreateNew: () => void;
+    onAddCustomer: () => void;
 }
 
-const getStatusStyles = (status: DocumentStatus): string => {
-    const statusStyles: { [key in DocumentStatus]: string } = {
-        [DocumentStatus.Paid]: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
-        [DocumentStatus.Sent]: 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300',
-        [DocumentStatus.Overdue]: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
-        [DocumentStatus.Draft]: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
-    };
-    return statusStyles[status] || 'bg-gray-100 text-gray-800';
-};
+type FileType = 'Invoice' | 'Quote' | 'Proposal' | 'Contract' | 'SLA' | 'Image' | 'Document';
 
-const StatusSelector: React.FC<{ doc: Document, updateDocument: (doc: Document) => void }> = ({ doc, updateDocument }) => {
-    const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newStatus = e.target.value as DocumentStatus;
-        updateDocument({ ...doc, status: newStatus });
-    };
+interface UnifiedFile {
+    id: string;
+    type: FileType;
+    title: string;
+    date: string;
+    status?: DocumentStatus;
+    amount?: number;
+    customerName?: string;
+    originalObject: Document | any;
+}
 
-    return (
-        <div className="relative">
-            <select
-                value={doc.status}
-                onChange={handleStatusChange}
-                className={`appearance-none cursor-pointer pl-2 pr-6 py-1 text-xs font-medium rounded-full border-0 focus:ring-0 focus:outline-none ${getStatusStyles(doc.status)}`}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <option value={DocumentStatus.Draft}>Draft</option>
-                <option value={DocumentStatus.Sent}>Sent</option>
-                <option value={DocumentStatus.Paid}>Paid</option>
-                <option value={DocumentStatus.Overdue}>Overdue</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1">
-                <svg className="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
-            </div>
-        </div>
-    );
-};
-
-type FileItem = Document & { fileType: 'Document' };
-type ItemToDelete = { id: string; doc_number: string; fileType: 'Document'; };
-type SortOption = 'most-recent' | 'oldest' | 'last-edited';
-
-const Files: React.FC<FilesProps> = ({ documents, editDocument, updateDocument, deleteDocument, bulkDeleteDocuments, searchTerm }) => {
-    const [typeFilter, setTypeFilter] = useState<string>('all');
-    const [showArchived, setShowArchived] = useState(false);
-    const [sortOption, setSortOption] = useState<SortOption>('most-recent');
+const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, updateDocument, deleteDocument, bulkDeleteDocuments, searchTerm, onCreateNew, onAddCustomer }) => {
+    const navigate = useNavigate();
+    const { textDocuments, deleteTextDocument, refreshTextDocuments } = useTextDocuments();
+    const [activeFilter, setActiveFilter] = useState<FileType | 'All'>('All');
+    const [sortOption, setSortOption] = useState<'Date' | 'Name' | 'Amount'>('Date');
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const [isWizardOpen, setIsWizardOpen] = useState(false);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [currentBundle, setCurrentBundle] = useState<ProposalBundle | null>(null);
 
-    const [activeMenu, setActiveMenu] = useState<{ id: string; top: number; left: number; position: 'top' | 'bottom' } | null>(null);
-    const [itemToDelete, setItemToDelete] = useState<ItemToDelete | null>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
-
-    const allFiles: FileItem[] = useMemo(() => {
-        const combined: FileItem[] = [
-            ...documents.map(d => ({ ...d, fileType: 'Document' as const })),
-        ];
-
-        return combined.sort((a, b) => {
-            switch (sortOption) {
-                case 'oldest':
-                    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-                case 'last-edited':
-                    // Note: 'updated_at' needs to be added to your documents/letters tables and types
-                    return new Date((b as any).updated_at || b.created_at).getTime() - new Date((a as any).updated_at || a.created_at).getTime();
-                case 'most-recent':
-                default:
-                    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    // ... (keep existing customers memo)
+    const customers = useMemo(() => {
+        const uniqueCustomers = new Map<string, Customer>();
+        (documents || []).forEach(doc => {
+            if (doc.customer) {
+                uniqueCustomers.set(doc.customer.id, doc.customer);
             }
         });
-    }, [documents, sortOption]);
+        return Array.from(uniqueCustomers.values());
+    }, [documents]);
+
+    // Unified Data Transformation
+    const allFiles: UnifiedFile[] = useMemo(() => {
+        const docs: UnifiedFile[] = (documents || []).map(d => ({
+            id: d.id,
+            type: d.type as FileType,
+            title: d.doc_number,
+            date: d.issue_date,
+            status: d.status,
+            amount: d.total,
+            customerName: d.customer?.name,
+            originalObject: d,
+        }));
+
+        // Placeholder for Images (Expenses with receipts) - assuming we might get them later
+        // const imageFiles: UnifiedFile[] = ...
+
+        const textDocs: UnifiedFile[] = (textDocuments || []).map(d => ({
+            id: d.id,
+            type: 'Document',
+            title: d.title,
+            date: d.updated_at || d.created_at,
+            status: undefined,
+            amount: undefined,
+            customerName: undefined,
+            originalObject: d,
+        }));
+
+        return [...docs, ...textDocs].sort((a, b) => {
+            if (sortOption === 'Date') return new Date(b.date).getTime() - new Date(a.date).getTime();
+            if (sortOption === 'Name') return a.title.localeCompare(b.title);
+            if (sortOption === 'Amount') return (b.amount || 0) - (a.amount || 0);
+            return 0;
+        });
+    }, [documents, textDocuments, sortOption]);
 
     const filteredFiles = useMemo(() => {
         return allFiles.filter(item => {
-            const lowercasedSearch = searchTerm.toLowerCase();
             const matchesSearch = searchTerm.trim() === '' ||
-                item.doc_number.toLowerCase().includes(lowercasedSearch) ||
-                (item.customer?.name || '').toLowerCase().includes(lowercasedSearch);
+                item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (item.customerName || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-            const itemType = item.type;
-            const matchesType = typeFilter === 'all' || itemType === typeFilter;
+            const matchesFilter = activeFilter === 'All' || item.type === activeFilter;
 
-            const matchesArchived = showArchived ? true : !item.archived;
-
-            return matchesSearch && matchesType && matchesArchived;
+            return matchesSearch && matchesFilter;
         });
-    }, [allFiles, searchTerm, typeFilter, showArchived]);
+    }, [allFiles, searchTerm, activeFilter]);
 
-    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSelectedItems(prev => {
-            const newSet = new Set(prev);
-            filteredFiles.forEach(f => e.target.checked ? newSet.add(f.id) : newSet.delete(f.id));
-            return newSet;
-        });
+    const handleItemClick = (file: UnifiedFile) => {
+        if (['Invoice', 'Quote', 'Proposal', 'Contract', 'SLA'].includes(file.type)) {
+            editDocument(file.originalObject);
+        } else if (file.type === 'Document') {
+            navigate(`/text-editor/${file.id}`);
+        }
     };
 
-    const handleSelectItem = (id: string) => {
-        setSelectedItems(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(id)) {
-                newSet.delete(id);
-            } else {
-                newSet.add(id);
-            }
-            return newSet;
-        });
+    const handleWizardComplete = (bundle: ProposalBundle) => {
+        setCurrentBundle(bundle);
+        setIsWizardOpen(false);
+        setIsEmailModalOpen(true);
     };
 
-    const isAllSelected = filteredFiles.length > 0 && selectedItems.size === filteredFiles.length;
+    const handleSendEmail = async (data: EmailData) => {
+        if (!currentBundle) return;
 
+        try {
+            // Show loading state (optional, but good UX)
+            // For now we'll just use the alert at the end
 
-    const toggleMenu = (itemId: string, event: React.MouseEvent) => {
-        event.stopPropagation();
-        if (activeMenu?.id === itemId) {
-            setActiveMenu(null);
-        } else {
-            const buttonRect = event.currentTarget.getBoundingClientRect();
-            const menuHeight = 220;
-            const spaceBelow = window.innerHeight - buttonRect.bottom;
-            const position = (spaceBelow < menuHeight && buttonRect.top > spaceBelow) ? 'top' : 'bottom';
-
-            setActiveMenu({
-                id: itemId,
-                top: position === 'top' ? buttonRect.top : buttonRect.bottom,
-                left: buttonRect.right,
-                position: position,
+            const { data: responseData, error } = await supabase.functions.invoke('send-proposal', {
+                body: {
+                    emailData: data,
+                    bundle: currentBundle,
+                    companyInfo: companyInfo,
+                },
             });
+
+            if (error) throw error;
+
+            alert(`Email sent successfully to ${data.to}!`);
+            setIsEmailModalOpen(false);
+            setCurrentBundle(null);
+        } catch (err: any) {
+            console.error('Error sending email:', err);
+            alert(`Failed to send email: ${err.message}`);
         }
     };
 
-    React.useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as Node;
-            const modal = document.querySelector('[role="dialog"]');
-            if (menuRef.current && !menuRef.current.contains(target) && (!modal || !modal.contains(target))) {
-                setActiveMenu(null);
+    const handleDelete = async (file: UnifiedFile, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (window.confirm(`Are you sure you want to delete "${file.title}"?`)) {
+            if (file.type === 'Document') {
+                await deleteTextDocument(file.id);
+            } else {
+                deleteDocument(file.id);
             }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleBulkArchive = () => {
-        selectedItems.forEach(id => {
-            const item = allFiles.find(f => f.id === id);
-            if (item) {
-                if (item.fileType === 'Document') {
-                    updateDocument({ ...(item as Document), archived: true });
-                }
-            }
-        });
-        setSelectedItems(new Set());
-    };
-
-    const handleBulkDelete = async () => {
-        if (window.confirm(`Are you sure you want to delete ${selectedItems.size} items? This action cannot be undone.`)) {
-            const docIdsToDelete = Array.from(selectedItems).filter(id => allFiles.find(f => f.id === id)?.fileType === 'Document');
-
-            const promises: Promise<void>[] = [];
-            if (docIdsToDelete.length > 0) {
-                promises.push(bulkDeleteDocuments(docIdsToDelete));
-            }
-            await Promise.all(promises);
-            setSelectedItems(new Set());
         }
     };
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-    }
 
     return (
-        <div className="space-y-6 h-full overflow-y-auto p-4 sm:p-6 lg:p-8">
-            <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="w-full sm:w-auto p-2 border rounded-md bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                        <option value="all">All Types</option>
-                        <option value={DocumentType.Invoice}>Invoice</option>
-                        <option value={DocumentType.Quote}>Quote</option>
-                    </select>
-                    <select value={sortOption} onChange={e => setSortOption(e.target.value as SortOption)} className="w-full sm:w-auto p-2 border rounded-md bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                        <option value="most-recent">Sort: Most Recent</option>
-                        <option value="oldest">Sort: Oldest</option>
-                        <option value="last-edited">Sort: Last Edited</option>
-                    </select>
-                    <label className="flex items-center gap-2 cursor-pointer p-2 rounded-md">
-                        <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                        <span className="text-sm font-medium">Show Archived</span>
-                    </label>
-                    <div className="flex-1 flex justify-end gap-2">
-                        <Link
-                            to="/editor"
-                            className="px-4 py-2 text-sm font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors flex items-center gap-2"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        <div className="h-full overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8">
+            {isWizardOpen && (
+                <ProposalWizard
+                    customers={customers}
+                    companyInfo={companyInfo}
+                    onComplete={handleWizardComplete}
+                    onCancel={() => setIsWizardOpen(false)}
+                    onAddCustomer={onAddCustomer}
+                />
+            )}
+
+            {isEmailModalOpen && currentBundle && (
+                <EmailProposalModal
+                    isOpen={isEmailModalOpen}
+                    onClose={() => setIsEmailModalOpen(false)}
+                    onSend={handleSendEmail}
+                    bundle={currentBundle}
+                    customers={customers}
+                />
+            )}
+
+            {/* Top Panel: Create New */}
+            <section>
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-zinc-100 mb-4">Create New</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Invoice / Quote */}
+                    <button
+                        onClick={() => {
+                            onCreateNew();
+                            navigate('/editor');
+                        }}
+                        className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-md transition-all group"
+                    >
+                        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400 mb-3 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                             </svg>
-                            New Document
-                        </Link>
-                        {selectedItems.size > 0 && (
-                            <>
-                                <button onClick={handleBulkArchive} className="px-3 py-2 text-sm font-semibold rounded-lg bg-yellow-100 text-yellow-800 hover:bg-yellow-200">Archive</button>
-                                <button onClick={handleBulkDelete} className="px-3 py-2 text-sm font-semibold rounded-lg bg-red-100 text-red-800 hover:bg-red-200">Delete</button>
-                            </>
-                        )}
+                        </div>
+                        <span className="font-medium text-slate-900 dark:text-zinc-100">Invoice / Quote</span>
+                        <span className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Create professional documents</span>
+                    </button>
+
+                    {/* Smart Proposal (Replaces Document) */}
+                    <button
+                        onClick={() => setIsWizardOpen(true)}
+                        className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-fuchsia-500 dark:hover:border-fuchsia-500 hover:shadow-md transition-all group"
+                    >
+                        <div className="p-3 bg-fuchsia-50 dark:bg-fuchsia-900/30 rounded-full text-fuchsia-600 dark:text-fuchsia-400 mb-3 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+                            </svg>
+                        </div>
+                        <span className="font-medium text-slate-900 dark:text-zinc-100">Smart Proposal</span>
+                        <span className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Bundle Quote, Contract & SLA</span>
+                    </button>
+
+                    {/* Proposal */}
+                    <button
+                        onClick={() => {
+                            onCreateNew();
+                            navigate('/proposal-editor?type=Proposal');
+                        }}
+                        className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-cyan-500 dark:hover:border-cyan-500 hover:shadow-md transition-all group"
+                    >
+                        <div className="p-3 bg-cyan-50 dark:bg-cyan-900/30 rounded-full text-cyan-600 dark:text-cyan-400 mb-3 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                        </div>
+                        <span className="font-medium text-slate-900 dark:text-zinc-100">Proposal</span>
+                        <span className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Standalone Proposal Document</span>
+                    </button>
+
+                    {/* Contract */}
+                    <button
+                        onClick={() => {
+                            onCreateNew();
+                            navigate('/proposal-editor?type=Contract');
+                        }}
+                        className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md transition-all group"
+                    >
+                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-full text-emerald-600 dark:text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                            </svg>
+                        </div>
+                        <span className="font-medium text-slate-900 dark:text-zinc-100">Contract</span>
+                        <span className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Standalone Contract Document</span>
+                    </button>
+
+                    {/* Text Document (Moved to 3rd slot or kept if space allows, or removed as per request to 'replace') */}
+                    <button
+                        onClick={() => navigate('/text-editor')}
+                        className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md transition-all group"
+                    >
+                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-full text-emerald-600 dark:text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                        </div>
+                        <span className="font-medium text-slate-900 dark:text-zinc-100">Document</span>
+                        <span className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Write notes and docs</span>
+                    </button>
+
+                </div>
+            </section>
+
+            {/* Main Panel: All Documents */}
+            <section className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-800 flex flex-col h-[600px]">
+                {/* Header / Filters */}
+                <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+                        {(['All', 'Invoice', 'Quote', 'Proposal', 'Contract', 'SLA', 'Document', 'Image'] as const).map(filter => (
+                            <button
+                                key={filter}
+                                onClick={() => setActiveFilter(filter)}
+                                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${activeFilter === filter
+                                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
+                                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                                    }`}
+                            >
+                                {filter}s
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <span className="text-sm text-slate-500 dark:text-zinc-400">Sort by:</span>
+                        <select
+                            value={sortOption}
+                            onChange={(e) => setSortOption(e.target.value as any)}
+                            className="text-sm border-none bg-transparent font-medium text-slate-700 dark:text-zinc-200 focus:ring-0 cursor-pointer"
+                        >
+                            <option value="Date">Date</option>
+                            <option value="Name">Name</option>
+                            <option value="Amount">Amount</option>
+                        </select>
                     </div>
                 </div>
-            </div>
 
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm overflow-x-auto">
-                <table className="w-full text-left min-w-[800px]">
-                    <thead className="text-xs text-slate-500 dark:text-zinc-400 uppercase border-b border-slate-200 dark:border-zinc-800">
-                        <tr>
-                            <th className="py-3 pr-3 w-12">
-                                <input
-                                    type="checkbox"
-                                    checked={isAllSelected}
-                                    onChange={handleSelectAll}
-                                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                />
-                            </th>
-                            <th className="py-3 pr-3">Number</th>
-                            <th className="py-3 px-3">Customer</th>
-                            <th className="py-3 px-3">Type</th>
-                            <th className="py-3 px-3">Date</th>
-                            <th className="py-3 px-3">Details / Total</th>
-                            <th className="py-3 px-3">Status</th>
-                            <th className="py-3 pl-3 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredFiles.map(item => (
-                            <tr key={item.id} className={`border-b border-slate-200 dark:border-zinc-800 last:border-b-0 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-opacity ${item.archived ? 'opacity-50' : ''}`}>
-                                <td className="py-3 pr-3">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectedItems.has(item.id)}
-                                        onChange={() => handleSelectItem(item.id)}
-                                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                    />
-                                </td>
-                                <td className="py-3 pr-3 font-medium">
-                                    <div className="flex items-center gap-2">
-                                        {item.archived && <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400 dark:text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><title>Archived</title><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}
-                                        <button onClick={() => editDocument(item as Document)} className="text-primary-600 dark:text-primary-400 hover:underline">
-                                            {item.doc_number}
-                                        </button>
-                                    </div>
-                                </td>
-                                <td className="py-3 px-3 text-slate-600 dark:text-zinc-300">{item.customer?.name || 'N/A'}</td>
-                                <td className="py-3 px-3 text-slate-600 dark:text-zinc-300">{(item as Document).type}</td>
-                                <td className="py-3 px-3 text-slate-600 dark:text-zinc-300">{item.issue_date}</td>
-                                <td className="py-3 px-3">
-                                    <span className="font-semibold text-slate-800 dark:text-zinc-100">{formatCurrency((item as Document).total)}</span>
-                                </td>
-                                <td className="py-3 px-3"><StatusSelector doc={item as Document} updateDocument={updateDocument} /></td>
-                                <td className="py-3 pl-3 text-right">
-                                    <button onClick={(e) => toggleMenu(item.id, e)} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-zinc-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" /></svg>
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Modals and menus are unchanged */}
+                {/* List */}
+                <div className="flex-1 overflow-y-auto">
+                    {filteredFiles.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-zinc-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mb-2 opacity-50">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                            <p>No files found</p>
+                        </div>
+                    ) : (
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 dark:bg-zinc-800/50 text-xs uppercase text-slate-500 dark:text-zinc-400 sticky top-0">
+                                <tr>
+                                    <th className="py-3 px-4 font-medium">Name</th>
+                                    <th className="py-3 px-4 font-medium w-32">Type</th>
+                                    <th className="py-3 px-4 font-medium w-32">Date</th>
+                                    <th className="py-3 px-4 font-medium w-32 text-right">Amount</th>
+                                    <th className="py-3 px-4 font-medium w-24 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
+                                {filteredFiles.map(file => (
+                                    <tr
+                                        key={file.id}
+                                        onClick={() => handleItemClick(file)}
+                                        className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer transition-colors group"
+                                    >
+                                        <td className="py-3 px-4">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium text-slate-900 dark:text-zinc-100">{file.title}</span>
+                                                {file.customerName && (
+                                                    <span className="text-xs text-slate-500 dark:text-zinc-400">{file.customerName}</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                                ${file.type === 'Invoice' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : ''}
+                                                ${file.type === 'Quote' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : ''}
+                                                ${file.type === 'Document' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' : ''}
+                                            `}>
+                                                {file.type}
+                                            </span>
+                                        </td>
+                                        <td className="py-3 px-4 text-sm text-slate-600 dark:text-zinc-400">{file.date}</td>
+                                        <td className="py-3 px-4 text-sm text-right font-medium text-slate-900 dark:text-zinc-100">
+                                            {file.amount ? `$${file.amount.toFixed(2)}` : '-'}
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                            <button
+                                                onClick={(e) => handleDelete(file, e)}
+                                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Delete"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </section>
         </div>
     );
 };

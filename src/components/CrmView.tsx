@@ -95,8 +95,7 @@ const CrmView: React.FC<CrmViewProps> = ({
 
   return (
     <div className="h-full flex flex-col p-4 sm:p-6 lg:p-8 gap-6 overflow-hidden">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">CRM</h1>
+      <div className="flex justify-end items-center">
         <button
           onClick={handleAddClick}
           className="bg-primary-600 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:bg-primary-700 transition-colors flex items-center gap-2"
@@ -120,8 +119,8 @@ const CrmView: React.FC<CrmViewProps> = ({
                 key={customer.id}
                 onClick={() => setSelectedCustomerId(customer.id)}
                 className={`p-3 rounded-lg cursor-pointer transition-colors ${selectedCustomerId === customer.id
-                    ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 border'
-                    : 'hover:bg-slate-50 dark:hover:bg-zinc-800 border border-transparent'
+                  ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 border'
+                  : 'hover:bg-slate-50 dark:hover:bg-zinc-800 border border-transparent'
                   }`}
               >
                 <div className="font-medium text-slate-900 dark:text-white truncate">{customer.name}</div>
@@ -179,10 +178,10 @@ const CrmView: React.FC<CrmViewProps> = ({
                       <td className="px-4 py-3">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${doc.status === 'Paid'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                              : doc.status === 'Overdue'
-                                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                                : 'bg-slate-100 text-slate-800 dark:bg-zinc-700 dark:text-zinc-300'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                            : doc.status === 'Overdue'
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                              : 'bg-slate-100 text-slate-800 dark:bg-zinc-700 dark:text-zinc-300'
                             }`}
                         >
                           {doc.status}

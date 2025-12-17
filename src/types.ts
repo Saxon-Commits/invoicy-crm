@@ -58,6 +58,9 @@ export interface DocumentItem {
 export enum DocumentType {
   Invoice = 'Invoice',
   Quote = 'Quote',
+  Proposal = 'Proposal',
+  Contract = 'Contract',
+  SLA = 'SLA',
 }
 
 export enum DocumentStatus {
@@ -65,6 +68,8 @@ export enum DocumentStatus {
   Sent = 'Sent',
   Paid = 'Paid',
   Overdue = 'Overdue',
+  Signed = 'Signed', // Added Signed status
+  Accepted = 'Accepted', // Added Accepted status
 }
 
 export interface Recurrence {
@@ -88,9 +93,13 @@ export interface Document {
   subtotal: number;
   tax: number;
   total: number;
+  deposit_amount?: number;
+  deposit_type?: 'percentage' | 'fixed';
   recurrence?: Recurrence;
   stripe_payment_link?: string;
   archived?: boolean;
+  content?: string; // HTML content for Proposals/Contracts
+  signature?: string; // Base64 signature data
   created_at: string;
 }
 
@@ -178,3 +187,20 @@ export interface ColorTheme {
 }
 
 
+
+export interface Note {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string; // HTML content
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  content: string; // HTML content with placeholders
+  category: 'Sales' | 'Project' | 'General';
+}

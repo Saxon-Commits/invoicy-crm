@@ -4,8 +4,8 @@ import { Customer } from '../types';
 interface CustomerModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (customerData: Omit<Customer, 'id' | 'created_at' | 'user_id' | 'activityLog'>) => void;
-    onUpdate: (customer: Customer) => void;
+    onSave: (customerData: Omit<Customer, 'id' | 'created_at' | 'user_id' | 'activityLog'>) => Promise<void> | void;
+    onUpdate: (customer: Customer) => Promise<void> | void;
     customerToEdit?: Customer | null;
 }
 
@@ -50,34 +50,45 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
         }
     }, [customerToEdit, isOpen]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const tagsArray = formData.tags.split(',').map((t) => t.trim()).filter(Boolean);
 
-        if (customerToEdit && onUpdate) {
-            onUpdate({
-                ...customerToEdit,
-                name: formData.name,
-                company_name: formData.company_name,
-                industry: formData.industry,
-                email: formData.email,
-                phone: formData.phone,
-                address: formData.address,
-                tags: tagsArray,
-            });
-        } else {
-            onSave({
-                name: formData.name,
-                company_name: formData.company_name,
-                industry: formData.industry,
-                email: formData.email,
-                phone: formData.phone,
-                address: formData.address,
-                tags: tagsArray,
-                preferences: [],
-            });
+        setIsSaving(true);
+        try {
+            if (customerToEdit && onUpdate) {
+                await onUpdate({
+                    ...customerToEdit,
+                    name: formData.name,
+                    company_name: formData.company_name,
+                    industry: formData.industry,
+                    email: formData.email,
+                    phone: formData.phone,
+                    address: formData.address,
+                    tags: tagsArray,
+                });
+            } else {
+                await onSave({
+                    name: formData.name,
+                    company_name: formData.company_name,
+                    industry: formData.industry,
+                    email: formData.email,
+                    phone: formData.phone,
+                    address: formData.address,
+                    tags: tagsArray,
+                    preferences: [],
+                });
+            }
+            onClose();
+        } catch (error) {
+            console.error('Error saving customer:', error);
+            // Optionally set an error state here to display in the modal
+            alert('Failed to save customer. Please try again.');
+        } finally {
+            setIsSaving(false);
         }
-        onClose();
     };
 
     if (!isOpen) return null;
@@ -118,6 +129,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                                         type="text"
                                         value={formData.company_name}
                                         onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                                        required
                                         className="w-full p-2 border rounded-md bg-slate-100 dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
                                     />
                                 </div>
@@ -132,7 +144,6 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                                         type="email"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        required
                                         className="w-full p-2 border rounded-md bg-slate-100 dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
                                     />
                                 </div>
@@ -144,7 +155,6 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                                         type="tel"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        required
                                         className="w-full p-2 border rounded-md bg-slate-100 dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
                                     />
                                 </div>
@@ -192,14 +202,22 @@ const CustomerModal: React.FC<CustomerModalProps> = ({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 rounded-md font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                            disabled={isSaving}
+                            className="px-4 py-2 rounded-md font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            className="px-4 py-2 rounded-md font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors"
+                            disabled={isSaving}
+                            className="px-4 py-2 rounded-md font-semibold bg-primary-600 text-white hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                         >
+                            {isSaving && (
+                                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            )}
                             {customerToEdit ? 'Save Changes' : 'Add Customer'}
                         </button>
                     </div>
