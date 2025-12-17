@@ -8,6 +8,7 @@ import { CrmProfile } from './crm/CrmProfile';
 import { CrmWorkspace } from './crm/CrmWorkspace';
 import { KanbanBoard } from './crm/KanbanBoard';
 import { LayoutGrid, Kanban as KanbanIcon } from 'lucide-react';
+import { FEATURES } from '../config/features';
 
 interface CrmViewProps {
   customers: Customer[];
@@ -135,27 +136,37 @@ const CrmView: React.FC<CrmViewProps> = ({
     <div className="h-full flex flex-col p-4 sm:p-6 lg:p-8 gap-6 overflow-hidden bg-slate-50 dark:bg-zinc-900/50">
       {/* Header Actions */}
       <div className="flex justify-between items-center bg-white dark:bg-zinc-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700">
+
         <div className="flex bg-slate-100 dark:bg-zinc-700 p-1 rounded-lg">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'list'
-                ? 'bg-white dark:bg-zinc-600 text-slate-800 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'
-              }`}
-          >
-            <LayoutGrid size={16} />
-            List
-          </button>
-          <button
-            onClick={() => setViewMode('board')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'board'
-                ? 'bg-white dark:bg-zinc-600 text-slate-800 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'
-              }`}
-          >
-            <KanbanIcon size={16} />
-            Board
-          </button>
+          {FEATURES.ENABLE_KANBAN && (
+            <>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'list'
+                  ? 'bg-white dark:bg-zinc-600 text-slate-800 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'
+                  }`}
+              >
+                <LayoutGrid size={16} />
+                List
+              </button>
+              <button
+                onClick={() => setViewMode('board')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === 'board'
+                  ? 'bg-white dark:bg-zinc-600 text-slate-800 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'
+                  }`}
+              >
+                <KanbanIcon size={16} />
+                Board
+              </button>
+            </>
+          )}
+          {!FEATURES.ENABLE_KANBAN && (
+            <div className="px-3 py-1.5 text-sm font-semibold text-slate-700 dark:text-zinc-300">
+              All Customers
+            </div>
+          )}
         </div>
 
         <button

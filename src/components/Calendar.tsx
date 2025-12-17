@@ -3,6 +3,7 @@ import { CalendarEvent, Task, Document } from '../types';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay, addMonths, subMonths, addWeeks, subWeeks, isToday, getHours, setHours, setMinutes } from 'date-fns';
 import { ChevronLeft, ChevronRight, MoreHorizontal, Clock, Plus, GripVertical } from 'lucide-react';
+import { FEATURES } from '../config/features';
 
 type View = 'month' | 'week' | 'day' | 'agenda';
 
@@ -74,38 +75,42 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
 
     const unscheduledTasks = useMemo(() => tasks.filter(t => !t.due_date), [tasks]);
 
+    // ... inside Calendar component ...
+
     return (
         <div className="flex h-full bg-slate-50 dark:bg-zinc-950 text-slate-800 dark:text-slate-200 overflow-hidden">
             {/* Sidebar for Unscheduled Tasks */}
-            <div className="w-64 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col flex-shrink-0">
-                <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
-                    <h3 className="font-semibold text-sm text-slate-700 dark:text-zinc-200">Unscheduled</h3>
-                    <button
-                        onClick={() => addTask({ text: 'New Task', status: 'todo' })}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-slate-500"
-                    >
-                        <Plus size={16} />
-                    </button>
-                </div>
-                <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                    {unscheduledTasks.map(task => (
-                        <div
-                            key={task.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, task)}
-                            className="p-3 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-400 dark:hover:border-blue-500 transition-colors group"
+            {FEATURES.ENABLE_CALENDAR_SIDEBAR && (
+                <div className="w-64 bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 flex flex-col flex-shrink-0">
+                    <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
+                        <h3 className="font-semibold text-sm text-slate-700 dark:text-zinc-200">Unscheduled</h3>
+                        <button
+                            onClick={() => addTask({ text: 'New Task', status: 'todo' })}
+                            className="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded text-slate-500"
                         >
-                            <div className="flex items-start gap-2">
-                                <GripVertical size={14} className="text-slate-400 mt-1 opacity-0 group-hover:opacity-100" />
-                                <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{task.text}</div>
+                            <Plus size={16} />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                        {unscheduledTasks.map(task => (
+                            <div
+                                key={task.id}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, task)}
+                                className="p-3 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-sm cursor-grab active:cursor-grabbing hover:border-blue-400 dark:hover:border-blue-500 transition-colors group"
+                            >
+                                <div className="flex items-start gap-2">
+                                    <GripVertical size={14} className="text-slate-400 mt-1 opacity-0 group-hover:opacity-100" />
+                                    <div className="text-sm font-medium text-slate-800 dark:text-zinc-100">{task.text}</div>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                    {unscheduledTasks.length === 0 && (
-                        <div className="text-center text-xs text-slate-400 mt-10">No unscheduled tasks</div>
-                    )}
+                        ))}
+                        {unscheduledTasks.length === 0 && (
+                            <div className="text-center text-xs text-slate-400 mt-10">No unscheduled tasks</div>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Main Calendar Area */}
             <div className="flex-1 flex flex-col min-w-0">

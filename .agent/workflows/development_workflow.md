@@ -43,6 +43,20 @@ description: Standard workflow for new projects, branching, and Vercel deploymen
 3. **Push**: `git push` (Triggers production deployment)
 4. **Cleanup**: `git branch -d feature-name`
 
+## Feature Flags Workflow
+### Developing a Feature
+1. Create branch: `git checkout -b feature-calendar`
+2. **Local**: Set `ENABLE_CALENDAR = true` in `src/config/features.ts`.
+3. Build & Test.
+
+### Releasing a Feature
+1. **Merge**: When the feature is ready for users, keep the flag `true` in your PR.
+2. **Deploy**: Merging to `main` with `true` will make it live for everyone.
+
+### Dark Launch (Merge code but keep hidden)
+1. **Merge**: If code is stable but feature isn't ready for public, set flag back to `false` before committing/merging.
+2. The code lives in `main` (hidden) until you are ready to switch it on.
+
 ## Sensitive Information
 
 ### Part A: Local Storage
