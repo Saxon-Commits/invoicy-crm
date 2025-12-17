@@ -17,6 +17,7 @@ export interface Profile {
   common_tags?: string[];
   stripe_account_id?: string;
   stripe_account_setup_complete?: boolean;
+  navigation_layout?: 'sidebar' | 'header';
 }
 
 export interface ActivityLog {
@@ -89,6 +90,7 @@ export interface Document {
   type: DocumentType;
   status: DocumentStatus;
   notes?: string;
+  terms?: string;
   template_id: string;
   subtotal: number;
   tax: number;
@@ -100,6 +102,19 @@ export interface Document {
   archived?: boolean;
   content?: string; // HTML content for Proposals/Contracts
   signature?: string; // Base64 signature data
+  // Contract specific fields
+  contract_scope?: string;
+  contract_financials?: string;
+  contract_payment_schedule?: string;
+  contract_obligations?: string;
+  contract_revisions?: string;
+  contract_cancellation?: string;
+  // Proposal specific fields
+  proposal_summary?: string;
+  proposal_scope?: string;
+  proposal_timeline?: string;
+  proposal_investment?: string;
+  proposal_next_steps?: string;
   created_at: string;
 }
 
@@ -109,10 +124,16 @@ export type NewDocumentData = Omit<
   'id' | 'doc_number' | 'customer_id' | 'created_at' | 'user_id' | 'customer'
 > & { customer: Customer | null };
 
+export interface PreviewProps {
+  document: Document;
+  companyInfo: CompanyInfo;
+  profile: Profile | null;
+}
+
 export interface TemplateInfo {
   id: string;
   name: string;
-  previewComponent: React.FC;
+  previewComponent: React.FC<PreviewProps>;
 }
 
 export interface CompanyInfo {

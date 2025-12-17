@@ -1,13 +1,7 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Document, CompanyInfo, DocumentItem, DocumentType, Profile, DocumentStatus } from '../types';
+import { Document, CompanyInfo, DocumentItem, DocumentType, Profile, DocumentStatus, PreviewProps } from '../types';
 import PaginatedContent from './PaginatedContent';
-
-interface PreviewProps {
-  document: Document;
-  companyInfo: CompanyInfo;
-  profile: Profile | null;
-}
 
 interface ExtendedPreviewProps extends PreviewProps {
   items: DocumentItem[];
@@ -108,9 +102,9 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
           {/* Header - Only on first page */}
           {showHeader && pageIndex === 0 && (
             <>
-              <header className="flex justify-between items-start pb-8 border-b-2 border-primary-500">
+              <header className="flex justify-between items-start pb-8 border-b-2 border-blue-500">
                 <div>
-                  <h1 className="text-4xl font-bold text-primary-600 uppercase tracking-wider">
+                  <h1 className="text-4xl font-bold text-blue-600 uppercase tracking-wider">
                     {document.type}
                   </h1>
                   <p className="text-slate-500 mt-1">{document.doc_number || '...'}</p>
@@ -134,7 +128,7 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
                   <h3 className="text-sm font-semibold uppercase text-slate-500 tracking-wider mb-2">
                     Bill To
                   </h3>
-                  <p className="font-bold text-lg text-primary-700">{document.customer?.name}</p>
+                  <p className="font-bold text-lg text-blue-700">{document.customer?.name}</p>
                   <p className="text-slate-600">{document.customer?.address}</p>
                   <p className="text-slate-600">{document.customer?.email}</p>
                 </div>
@@ -153,7 +147,7 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
           {/* Items Table */}
           <section className="flex-grow">
             <table className="w-full text-left">
-              <thead className="bg-primary-500 text-white">
+              <thead className="bg-blue-500 text-white">
                 <tr>
                   <th className="p-3 font-semibold uppercase">Description</th>
                   <th className="p-3 font-semibold uppercase text-center w-24">Qty</th>
@@ -183,7 +177,7 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
                     href={document.stripe_payment_link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+                    className="px-8 py-3 text-lg font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-md"
                   >
                     Pay Now
                   </a>
@@ -191,7 +185,7 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
               )}
 
               <section className="flex justify-end mt-8">
-                <div className="w-full sm:w-1/2 space-y-2 text-slate-600">
+                <div className="w-1/2 space-y-2 text-slate-600">
                   <div className="flex justify-between">
                     <p>Subtotal</p>
                     <p>${document.subtotal.toFixed(2)}</p>
@@ -200,7 +194,7 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
                     <p>Tax ({document.tax}%)</p>
                     <p>${((document.subtotal * document.tax) / 100).toFixed(2)}</p>
                   </div>
-                  <div className="flex justify-between font-bold text-xl text-primary-600 border-t-2 border-primary-500 pt-2">
+                  <div className="flex justify-between font-bold text-xl text-blue-600 border-t-2 border-blue-500 pt-2">
                     <p>Total</p>
                     <p>${document.total.toFixed(2)}</p>
                   </div>
@@ -223,6 +217,12 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
                 <div className="mt-10 pt-5 border-t border-slate-200">
                   <h3 className="font-semibold text-slate-600">Notes</h3>
                   <p className="text-sm text-slate-500">{document.notes}</p>
+                </div>
+              )}
+              {document.terms && (
+                <div className="mt-6 pt-5 border-t border-slate-200">
+                  <h3 className="font-semibold text-slate-600">Terms & Conditions</h3>
+                  <p className="text-sm text-slate-500 whitespace-pre-wrap">{document.terms}</p>
                 </div>
               )}
             </footer>
@@ -272,7 +272,7 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
             {companyInfo.abn && <p className="text-gray-600">ABN: {companyInfo.abn}</p>}
           </header>
           <div className="w-full h-px bg-gray-300 my-8"></div>
-          <section className="flex justify-between mb-8 flex-col sm:flex-row gap-4">
+          <section className="flex justify-between mb-8 flex-row gap-4">
             <div>
               <h2 className="text-2xl font-semibold mb-2 text-gray-800">{document.type}</h2>
               {/* Fix: Changed docNumber to doc_number */}
@@ -288,7 +288,7 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
                 <span className="font-semibold text-gray-700">{document.type === DocumentType.Quote ? 'Valid To:' : 'Due Date:'}</span> {document.due_date}
               </p>
             </div>
-            <div className="sm:text-right">
+            <div className="text-right">
               <h3 className="font-semibold mb-1 text-gray-700">Billed To:</h3>
               <p className="text-gray-800">{document.customer?.name}</p>
               <p className="text-gray-600">{document.customer?.address}</p>
@@ -339,7 +339,7 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-4">
-            <table className="w-full sm:w-1/2 md:w-1/3 text-gray-800">
+            <table className="w-1/3 text-gray-800">
               <tbody>
                 <tr>
                   <td className="p-1 text-right">Subtotal:</td>
@@ -379,6 +379,12 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
           {document.notes && (
             <div className="mt-10 text-sm text-gray-600">
               <p>{document.notes}</p>
+            </div>
+          )}
+          {document.terms && (
+            <div className="mt-6 pt-5 border-t border-gray-300">
+              <h3 className="font-semibold text-gray-700">Terms & Conditions</h3>
+              <p className="text-sm text-gray-600 whitespace-pre-wrap">{document.terms}</p>
             </div>
           )}
         </footer>
@@ -430,13 +436,13 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
             </div>
           </header>
 
-          <section className="flex justify-between mb-12 relative z-10 flex-col sm:flex-row gap-4">
+          <section className="flex justify-between mb-12 relative z-10 flex-row gap-4">
             <div>
               <p className="text-cyan-400 uppercase text-sm">To:</p>
               <p className="text-lg font-bold text-white">{document.customer?.name}</p>
               <p className="text-slate-400">{document.customer?.address}</p>
             </div>
-            <div className="sm:text-right">
+            <div className="text-right">
               {/* Fix: Changed issueDate to issue_date */}
               <p className="text-cyan-400">
                 Issue Date: <span className="text-white">{document.issue_date}</span>
@@ -455,9 +461,9 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex justify-between items-center py-3 border-b border-slate-700 last:border-b-0 flex-col sm:flex-row text-center sm:text-left"
+              className="flex justify-between items-center py-3 border-b border-slate-700 last:border-b-0 flex-row text-left"
             >
-              <div className="flex-1 mb-2 sm:mb-0">
+              <div className="flex-1 mb-0">
                 <p className="font-bold text-lg text-white whitespace-pre-wrap">{item.description}</p>
                 <p className="text-fuchsia-400 text-sm">
                   {item.quantity} x ${item.price.toFixed(2)}
@@ -487,7 +493,7 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-8">
-            <div className="w-full sm:w-3/5 md:w-2/5 space-y-2 text-lg">
+            <div className="w-2/5 space-y-2 text-lg">
               <div className="flex justify-between">
                 <p className="text-slate-400">Subtotal</p>
                 <p className="text-white">${document.subtotal.toFixed(2)}</p>
@@ -639,7 +645,7 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-8">
-            <div className="w-full sm:w-2/5 space-y-2 text-gray-600">
+            <div className="w-2/5 space-y-2 text-gray-600">
               <div className="flex justify-between">
                 <p>Subtotal</p>
                 <p>${document.subtotal.toFixed(2)}</p>
@@ -698,7 +704,7 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
       )}
       {showHeader && (
         <>
-          <header className="bg-gray-900 text-white p-4 sm:p-6 lg:p-10">
+          <header className="bg-gray-900 text-white p-10">
             <div className="flex justify-between items-center">
               <div>
                 {companyInfo.logo && (
@@ -718,7 +724,7 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
               </div>
             </div>
           </header>
-          <section className="grid grid-cols-2 gap-8 my-8 px-4 sm:px-6 lg:px-10">
+          <section className="grid grid-cols-2 gap-8 my-8 px-10">
             <div>
               <h3 className="text-sm font-bold uppercase text-gray-500 tracking-wider mb-2">
                 Bill To:
@@ -742,7 +748,7 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
         </>
       )}
 
-      <section className="flex-grow px-4 sm:px-6 lg:px-10">
+      <section className="flex-grow px-10">
         <table className="w-full text-left">
           <thead className="border-b-2 border-gray-900">
             <tr>
@@ -770,7 +776,7 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
       </section>
 
       {showFooter && (
-        <footer className="mt-auto px-4 sm:px-6 lg:px-10">
+        <footer className="mt-auto px-10">
           {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
             <div className="my-6 text-center">
               <a
@@ -785,7 +791,7 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-8">
-            <div className="w-full sm:w-1/2 lg:w-2/5 py-4 text-gray-800">
+            <div className="w-2/5 py-4 text-gray-800">
               <div className="flex justify-between">
                 <p>Subtotal</p>
                 <p>${document.subtotal.toFixed(2)}</p>
@@ -914,7 +920,7 @@ const TemplateRetro: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-4">
-            <div className="w-full sm:w-1/2 text-sm">
+            <div className="w-1/2 text-sm">
               <div className="flex justify-between p-1 border-t border-dashed border-[#93a1a1]">
                 <p>Subtotal:</p>
                 <p>${document.subtotal.toFixed(2)}</p>
@@ -961,7 +967,7 @@ const TemplateCorporate: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col relative">
+    <div className="bg-white text-gray-800 p-10 font-sans h-full flex flex-col relative">
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -1052,7 +1058,7 @@ const TemplateCorporate: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-8">
-            <div className="w-full sm:w-1/2 space-y-2 text-gray-700">
+            <div className="w-1/2 space-y-2 text-gray-700">
               <div className="flex justify-between">
                 <p>Subtotal</p>
                 <p>${document.subtotal.toFixed(2)}</p>
@@ -1088,7 +1094,7 @@ const TemplateElegant: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-serif h-full flex flex-col relative">
+    <div className="bg-white text-gray-800 p-10 font-serif h-full flex flex-col relative">
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -1175,7 +1181,7 @@ const TemplateElegant: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-8">
-            <div className="w-full sm:w-1/2 space-y-2 text-gray-700">
+            <div className="w-1/2 space-y-2 text-gray-700">
               <div className="flex justify-between">
                 <p>Subtotal</p>
                 <p>${document.subtotal.toFixed(2)}</p>
@@ -1205,7 +1211,7 @@ const TemplateFriendly: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col overflow-hidden relative">
+    <div className="bg-white text-gray-800 p-10 font-sans h-full flex flex-col overflow-hidden relative">
       <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-green-500/10 rounded-full"></div>
       <div className="absolute bottom-0 left-0 -mb-20 -ml-20 w-48 h-48 bg-green-500/10 rounded-full"></div>
       {document.status === DocumentStatus.Paid && (
@@ -1297,7 +1303,7 @@ const TemplateFriendly: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-4">
-            <div className="w-full sm:w-1/2 p-6 bg-green-50 rounded-xl">
+            <div className="w-1/2 p-6 bg-green-50 rounded-xl">
               <div className="flex justify-between text-gray-700">
                 <p>Subtotal</p>
                 <p>${document.subtotal.toFixed(2)}</p>
@@ -1327,7 +1333,7 @@ const TemplateTechnical: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-gray-800 p-4 sm:p-6 lg:p-10 font-mono h-full flex flex-col text-sm relative">
+    <div className="bg-white text-gray-800 p-10 font-mono h-full flex flex-col text-sm relative">
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -1403,7 +1409,7 @@ const TemplateTechnical: React.FC<ExtendedPreviewProps> = ({
 
           <div className="w-full border-t border-dashed border-gray-400 mt-8"></div>
           <section className="flex justify-end mt-4">
-            <div className="w-full sm:w-1/2">
+            <div className="w-1/2">
               <p className="flex justify-between">
                 <span>SUBTOTAL</span> <span>${document.subtotal.toFixed(2)}</span>
               </p>
@@ -1436,7 +1442,7 @@ const TemplateEarthy: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-emerald-50 text-stone-800 p-4 smp-6 lg:p-10 font-sans h-full flex flex-col relative">
+    <div className="bg-emerald-50 text-stone-800 p-10 font-sans h-full flex flex-col relative">
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -1524,7 +1530,7 @@ const TemplateEarthy: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-8">
-            <div className="w-full sm:w-1/2 space-y-2 text-stone-700">
+            <div className="w-1/2 space-y-2 text-stone-700">
               <div className="flex justify-between">
                 <p>Subtotal</p>
                 <p>${document.subtotal.toFixed(2)}</p>
@@ -1554,7 +1560,7 @@ const TemplateSwiss: React.FC<ExtendedPreviewProps> = ({
   profile,
 }) => {
   return (
-    <div className="bg-white text-black p-4 sm:p-6 lg:p-10 font-sans h-full flex flex-col relative">
+    <div className="bg-white text-black p-10 font-sans h-full flex flex-col relative">
       {document.status === DocumentStatus.Paid && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div
@@ -1640,7 +1646,7 @@ const TemplateSwiss: React.FC<ExtendedPreviewProps> = ({
           )}
 
           <section className="flex justify-end mt-8">
-            <div className="w-full sm:w-1/2 space-y-2 text-gray-800">
+            <div className="w-1/2 space-y-2 text-gray-800">
               <div className="flex justify-between">
                 <p>Subtotal</p>
                 <p>${document.subtotal.toFixed(2)}</p>
@@ -1676,7 +1682,7 @@ const templates: { [key: string]: React.FC<ExtendedPreviewProps> } = {
   swiss: TemplateSwiss,
 };
 
-const TemplateDocument: React.FC<ExtendedPreviewProps> = ({
+const TemplateSimple: React.FC<ExtendedPreviewProps> = ({
   document,
   companyInfo,
   items,
@@ -1684,8 +1690,12 @@ const TemplateDocument: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // This replaces TemplateDocument
+  // Content rendering logic for proposals/contracts with simple styling
+  const isContractOrProposal = [DocumentType.Proposal, DocumentType.Contract, DocumentType.SLA].includes(document.type);
+
   return (
-    <div id="document-preview-content" className="bg-white text-slate-800 p-8 sm:p-12 font-sans h-full flex flex-col relative max-w-4xl mx-auto shadow-sm">
+    <div id="document-preview-content" className="bg-white text-slate-800 p-12 font-serif min-h-full flex flex-col relative max-w-[800px] mx-auto">
       {document.status === DocumentStatus.Signed && (
         <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
           <div className="text-8xl font-black text-blue-500/20 border-8 border-blue-500/20 rounded-full px-8 py-4 transform -rotate-12">
@@ -1723,11 +1733,86 @@ const TemplateDocument: React.FC<ExtendedPreviewProps> = ({
         </div>
       </div>
 
-      <div className="prose prose-slate max-w-none mb-12">
-        {document.content ? (
-          <div dangerouslySetInnerHTML={{ __html: document.content }} />
-        ) : (
-          <p className="text-slate-400 italic">No content added yet.</p>
+      <div className="mb-12 space-y-8">
+        {document.type === DocumentType.Proposal && (
+          <>
+            {document.proposal_summary && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Executive Summary</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.proposal_summary}</p>
+              </div>
+            )}
+            {document.proposal_scope && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Scope of Work</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.proposal_scope}</p>
+              </div>
+            )}
+            {document.proposal_timeline && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Timeline</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.proposal_timeline}</p>
+              </div>
+            )}
+            {document.proposal_investment && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Investment</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.proposal_investment}</p>
+              </div>
+            )}
+            {document.proposal_next_steps && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Next Steps</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.proposal_next_steps}</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {document.type === DocumentType.Contract && (
+          <>
+            {document.contract_scope && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Scope of Work</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.contract_scope}</p>
+              </div>
+            )}
+            {document.contract_financials && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Financial Terms</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.contract_financials}</p>
+              </div>
+            )}
+            {document.contract_payment_schedule && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Payment Schedule</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.contract_payment_schedule}</p>
+              </div>
+            )}
+            {document.contract_obligations && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Client Responsibilities</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.contract_obligations}</p>
+              </div>
+            )}
+            {document.contract_revisions && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Revisions</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.contract_revisions}</p>
+              </div>
+            )}
+            {document.contract_cancellation && (
+              <div>
+                <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wider mb-2">Cancellation</h3>
+                <p className="whitespace-pre-wrap text-slate-800 leading-relaxed">{document.contract_cancellation}</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Fallback for generic content or existing docs */}
+        {document.content && !document.proposal_summary && !document.contract_scope && (
+          <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: document.content }} />
         )}
       </div>
 
@@ -1879,20 +1964,26 @@ const DocumentPreview: React.FC<PreviewProps> = ({ document, companyInfo, profil
     );
   }
 
-  // Choose template based on ID or Type
-  const isTextDocument = [DocumentType.Proposal, DocumentType.Contract, DocumentType.SLA].includes(document.type);
 
   let TemplateComponent = TemplateModern;
-  if (isTextDocument) {
-    TemplateComponent = TemplateDocument;
-  } else {
-    TemplateComponent =
-      document.template_id === 'minimalist' ? TemplateMinimalist :
-        document.template_id === 'creative' ? TemplateCreative :
-          document.template_id === 'bold' ? TemplateBold :
-            document.template_id === 'retro' ? TemplateRetro :
-              TemplateModern;
+
+  switch (document.template_id) {
+    case 'simple': TemplateComponent = TemplateSimple; break;
+    case 'classic': TemplateComponent = TemplateClassic; break;
+    case 'creative': TemplateComponent = TemplateCreative; break;
+    case 'minimalist': TemplateComponent = TemplateMinimalist; break;
+    case 'bold': TemplateComponent = TemplateBold; break;
+    case 'retro': TemplateComponent = TemplateRetro; break;
+    case 'corporate': TemplateComponent = TemplateCorporate; break;
+    case 'elegant': TemplateComponent = TemplateElegant; break;
+    case 'friendly': TemplateComponent = TemplateFriendly; break;
+    case 'technical': TemplateComponent = TemplateTechnical; break;
+    case 'earthy': TemplateComponent = TemplateEarthy; break;
+    case 'swiss': TemplateComponent = TemplateSwiss; break;
+    case 'modern':
+    default: TemplateComponent = TemplateModern; break;
   }
+
 
   return (
     <div ref={containerRef} className="flex flex-col items-center gap-8 p-4 bg-slate-100 dark:bg-zinc-900/50 min-h-full">

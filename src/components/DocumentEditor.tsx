@@ -115,6 +115,29 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
     // Auto-save hook
     useAutoSave(AUTO_SAVE_KEY, doc);
 
+    // Sections State
+    const [sections, setSections] = useState({
+        details: true,
+        items: false,
+        financials: false,
+        notes: false,
+        typeSpecific: false,
+        design: false
+    });
+
+    const toggleSection = (section: keyof typeof sections) => {
+        setSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
+
+    const SectionHeader = ({ title, isOpen, onClick }: { title: string, isOpen: boolean, onClick: () => void }) => (
+        <div onClick={onClick} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-zinc-800/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors border-b border-slate-200 dark:border-zinc-700">
+            <h2 className="text-sm font-bold uppercase text-slate-500 dark:text-zinc-400 tracking-wider">{title}</h2>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+        </div>
+    );
+
     // Effect for initializing the form state
     useEffect(() => {
         const loadDraft = () => {
@@ -349,196 +372,182 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
                 {/* Editor Form */}
                 <div className={`lg:w-1/2 h-full bg-white dark:bg-zinc-900 p-6 rounded-xl shadow-sm overflow-y-auto ${mobileView === 'editor' ? 'block' : 'hidden'} lg:block`}>
                     <div className="space-y-6">
-                        {/* Customer and Type */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Customer</label>
-                                <select onChange={handleCustomerChange} value={doc.customer?.id || ''} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700">
-                                    <option value="" disabled>Select a customer</option>
-                                    {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Status</label>
-                                <select value={doc.status} onChange={(e) => setDoc(p => ({ ...p, status: e.target.value as DocumentStatus }))} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700">
-                                    <option value={DocumentStatus.Draft}>Draft</option>
-                                    <option value={DocumentStatus.Sent}>Sent</option>
-                                    <option value={DocumentStatus.Paid}>Paid</option>
-                                    <option value={DocumentStatus.Overdue}>Overdue</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Document Type</label>
-                            <div className="flex space-x-2">
-                                <button onClick={() => setDoc(p => ({ ...p, type: DocumentType.Invoice }))} className={`flex-1 py-2 rounded-md transition ${doc.type === DocumentType.Invoice ? 'bg-primary-600 text-white' : 'bg-slate-200 dark:bg-zinc-800'}`}>Invoice</button>
-                                <button onClick={() => setDoc(p => ({ ...p, type: DocumentType.Quote }))} className={`flex-1 py-2 rounded-md transition ${doc.type === DocumentType.Quote ? 'bg-primary-600 text-white' : 'bg-slate-200 dark:bg-zinc-800'}`}>Quote</button>
-                            </div>
-                        </div>
-
-                        {/* Recurrence Settings */}
-                        {doc.type === DocumentType.Invoice && (
-                            <div>
-                                <h2 className="text-lg font-semibold mb-2">Recurrence</h2>
-                                <div className="bg-slate-50 dark:bg-zinc-950/50 p-4 rounded-lg space-y-4">
-                                    <div className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            id="isRecurring"
-                                            checked={!!doc.recurrence}
-                                            onChange={e => {
-                                                const { ...rest } = doc;
-                                                if (e.target.checked) {
-                                                    setDoc({ ...rest, recurrence: { frequency: 'monthly' } });
-                                                } else {
-                                                    setDoc(rest);
-                                                }
-                                            }}
-                                            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                                        />
-                                        <label htmlFor="isRecurring" className="ml-2 block text-sm font-medium">
-                                            This is a recurring invoice
-                                        </label>
-                                    </div>
-                                    {doc.recurrence && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Frequency</label>
-                                                <select
-                                                    value={doc.recurrence.frequency}
-                                                    onChange={e => setDoc(p => ({ ...p, recurrence: { ...p.recurrence!, frequency: e.target.value as Recurrence['frequency'] } }))}
-                                                    className="w-full p-2 border rounded-md bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
-                                                >
-                                                    <option value="daily">Daily</option>
-                                                    <option value="weekly">Weekly</option>
-                                                    <option value="monthly">Monthly</option>
-                                                    <option value="yearly">Yearly</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">End Date (Optional)</label>
-                                                <input
-                                                    type="date"
-                                                    value={doc.recurrence.endDate || ''}
-                                                    onChange={e => setDoc(p => ({ ...p, recurrence: { ...p.recurrence!, endDate: e.target.value } }))}
-                                                    className="w-full p-2 border rounded-md bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Dates */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Issue Date</label>
-                                <input type="date" value={doc.issue_date} onChange={e => setDoc(p => ({ ...p, issue_date: e.target.value }))} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">{doc.type === DocumentType.Quote ? 'Valid To' : 'Due Date'}</label>
-                                <input type="date" value={doc.due_date} onChange={e => setDoc(p => ({ ...p, due_date: e.target.value }))} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" />
-                            </div>
-                        </div>
-
-                        {/* Line Items */}
-                        <div>
-                            <h2 className="text-lg font-semibold mb-2">Items</h2>
-                            <div className="space-y-2">
-                                {doc.items.map((item) => (
-                                    <div key={item.id} className="flex gap-2 items-center">
-                                        <textarea
-                                            placeholder="Description"
-                                            value={item.description}
-                                            onChange={e => {
-                                                handleItemChange(item.id, 'description', e.target.value);
-                                                e.target.style.height = 'auto';
-                                                e.target.style.height = e.target.scrollHeight + 'px';
-                                            }}
-                                            rows={1}
-                                            className="flex-grow min-w-0 p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 resize-none overflow-hidden"
-                                            style={{ minHeight: '42px' }}
-                                        />
-                                        <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)} className="w-20 p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" />
-                                        <input type="number" placeholder="Price" value={item.price} onChange={e => handleItemChange(item.id, 'price', parseFloat(e.target.value) || 0)} className="w-24 p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" />
-                                        <button onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700 p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 flex-shrink-0">
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex gap-4 mt-2">
-                                <button onClick={addItem} className="text-primary-600 dark:text-primary-400 font-semibold">+ Add Item</button>
-                                {unbilledExpenses.length > 0 && doc.type === DocumentType.Invoice && (
-                                    <button onClick={() => setIsExpenseModalOpen(true)} className="text-green-600 dark:text-green-400 font-semibold">+ Add Unbilled Expenses ({unbilledExpenses.length})</button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Totals */}
-                        <div className="flex justify-end">
-                            <div className="w-full md:w-1/2 space-y-2">
-                                <div className="flex justify-between"><span>Subtotal:</span><span>{doc.subtotal.toFixed(2)}</span></div>
-                                <div className="flex justify-between items-center">
-                                    <span>Tax (%):</span>
-                                    <input type="number" value={doc.tax} onChange={e => setDoc(p => ({ ...p, tax: parseFloat(e.target.value) || 0 }))} className="w-20 p-1 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-right" />
-                                </div>
-                                <div className="flex justify-between font-bold text-lg border-t pt-2 border-slate-300 dark:border-zinc-700"><span>Total:</span><span>{doc.total.toFixed(2)}</span></div>
-
-                                {/* Deposit Section */}
-                                <div className="border-t border-slate-200 dark:border-zinc-800 pt-2 mt-2">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="text-sm font-medium text-slate-600 dark:text-zinc-400">Deposit / Retainer:</span>
-                                        <div className="flex gap-2">
-                                            <select
-                                                value={doc.deposit_type || 'fixed'}
-                                                onChange={e => setDoc(p => ({ ...p, deposit_type: e.target.value as 'fixed' | 'percentage' }))}
-                                                className="p-1 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
-                                            >
-                                                <option value="fixed">$ Fixed</option>
-                                                <option value="percentage">% Percent</option>
+                        {/* Document Details Section */}
+                        <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4">
+                            <SectionHeader title="Document Details" isOpen={sections.details} onClick={() => toggleSection('details')} />
+                            {sections.details && (
+                                <div className="p-4 space-y-4 bg-white dark:bg-zinc-900">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Customer</label>
+                                            <select onChange={handleCustomerChange} value={doc.customer?.id || ''} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700">
+                                                <option value="" disabled>Select a customer</option>
+                                                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                             </select>
-                                            <input
-                                                type="number"
-                                                value={doc.deposit_amount || 0}
-                                                onChange={e => setDoc(p => ({ ...p, deposit_amount: parseFloat(e.target.value) || 0 }))}
-                                                className="w-20 p-1 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-right"
-                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Status</label>
+                                            <select value={doc.status} onChange={(e) => setDoc(p => ({ ...p, status: e.target.value as DocumentStatus }))} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700">
+                                                <option value={DocumentStatus.Draft}>Draft</option>
+                                                <option value={DocumentStatus.Sent}>Sent</option>
+                                                <option value={DocumentStatus.Paid}>Paid</option>
+                                                <option value={DocumentStatus.Overdue}>Overdue</option>
+                                            </select>
                                         </div>
                                     </div>
-                                    {doc.deposit_amount && doc.deposit_amount > 0 && (
-                                        <div className="flex justify-between font-bold text-primary-600 dark:text-primary-400">
-                                            <span>Balance Due:</span>
-                                            <span>
-                                                {(doc.total - (doc.deposit_type === 'percentage' ? (doc.total * (doc.deposit_amount / 100)) : doc.deposit_amount)).toFixed(2)}
-                                            </span>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Document Type</label>
+                                        <div className="flex space-x-2">
+                                            <button onClick={() => setDoc(p => ({ ...p, type: DocumentType.Invoice }))} className={`flex-1 py-2 rounded-md transition ${doc.type === DocumentType.Invoice ? 'bg-primary-600 text-white' : 'bg-slate-200 dark:bg-zinc-800'}`}>Invoice</button>
+                                            <button onClick={() => setDoc(p => ({ ...p, type: DocumentType.Quote }))} className={`flex-1 py-2 rounded-md transition ${doc.type === DocumentType.Quote ? 'bg-primary-600 text-white' : 'bg-slate-200 dark:bg-zinc-800'}`}>Quote</button>
+                                            <button onClick={() => setDoc(p => ({ ...p, type: DocumentType.Proposal }))} className={`flex-1 py-2 rounded-md transition ${doc.type === DocumentType.Proposal ? 'bg-primary-600 text-white' : 'bg-slate-200 dark:bg-zinc-800'}`}>Proposal</button>
+                                            <button onClick={() => setDoc(p => ({ ...p, type: DocumentType.Contract }))} className={`flex-1 py-2 rounded-md transition ${doc.type === DocumentType.Contract ? 'bg-primary-600 text-white' : 'bg-slate-200 dark:bg-zinc-800'}`}>Contract</button>
+                                            <button onClick={() => setDoc(p => ({ ...p, type: DocumentType.SLA }))} className={`flex-1 py-2 rounded-md transition ${doc.type === DocumentType.SLA ? 'bg-primary-600 text-white' : 'bg-slate-200 dark:bg-zinc-800'}`}>SLA</button>
                                         </div>
-                                    )}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Issue Date</label>
+                                            <input type="date" value={doc.issue_date} onChange={e => setDoc(p => ({ ...p, issue_date: e.target.value }))} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">{doc.type === DocumentType.Quote ? 'Valid To' : 'Due Date'}</label>
+                                            <input type="date" value={doc.due_date} onChange={e => setDoc(p => ({ ...p, due_date: e.target.value }))} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" />
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
-                        {/* Notes */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Notes</label>
-                            <textarea value={doc.notes} onChange={e => setDoc(p => ({ ...p, notes: e.target.value }))} rows={3} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"></textarea>
+                        {/* Items Section */}
+                        <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4">
+                            <SectionHeader title="Items" isOpen={sections.items} onClick={() => toggleSection('items')} />
+                            {sections.items && (
+                                <div className="p-4 bg-white dark:bg-zinc-900">
+                                    <div className="space-y-2">
+                                        {doc.items.map((item) => (
+                                            <div key={item.id} className="flex gap-2 items-center">
+                                                <textarea
+                                                    placeholder="Description"
+                                                    value={item.description}
+                                                    onChange={e => {
+                                                        handleItemChange(item.id, 'description', e.target.value);
+                                                        e.target.style.height = 'auto';
+                                                        e.target.style.height = e.target.scrollHeight + 'px';
+                                                    }}
+                                                    rows={1}
+                                                    className="flex-grow min-w-0 p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 resize-none overflow-hidden"
+                                                    style={{ minHeight: '42px' }}
+                                                />
+                                                <input type="number" placeholder="Qty" value={item.quantity} onChange={e => handleItemChange(item.id, 'quantity', parseFloat(e.target.value) || 0)} className="w-20 p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" />
+                                                <input type="number" placeholder="Price" value={item.price} onChange={e => handleItemChange(item.id, 'price', parseFloat(e.target.value) || 0)} className="w-24 p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" />
+                                                <button onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700 p-2 rounded-md hover:bg-red-100 dark:hover:bg-red-900/50 flex-shrink-0">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex gap-4 mt-2">
+                                        <button onClick={addItem} className="text-primary-600 dark:text-primary-400 font-semibold">+ Add Item</button>
+                                        {unbilledExpenses.length > 0 && doc.type === DocumentType.Invoice && (
+                                            <button onClick={() => setIsExpenseModalOpen(true)} className="text-green-600 dark:text-green-400 font-semibold">+ Add Unbilled Expenses ({unbilledExpenses.length})</button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Financials Section */}
+                        <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4">
+                            <SectionHeader title="Financials" isOpen={sections.financials} onClick={() => toggleSection('financials')} />
+                            {sections.financials && (
+                                <div className="p-4 bg-white dark:bg-zinc-900">
+                                    <div className="flex justify-end">
+                                        <div className="w-full md:w-1/2 space-y-2">
+                                            <div className="flex justify-between"><span>Subtotal:</span><span>{doc.subtotal.toFixed(2)}</span></div>
+                                            <div className="flex justify-between items-center">
+                                                <span>Tax (%):</span>
+                                                <input type="number" value={doc.tax} onChange={e => setDoc(p => ({ ...p, tax: parseFloat(e.target.value) || 0 }))} className="w-20 p-1 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-right" />
+                                            </div>
+                                            <div className="flex justify-between font-bold text-lg border-t pt-2 border-slate-300 dark:border-zinc-700"><span>Total:</span><span>{doc.total.toFixed(2)}</span></div>
+
+                                            {/* Deposit Section */}
+                                            <div className="border-t border-slate-200 dark:border-zinc-800 pt-2 mt-2">
+                                                <div className="flex justify-between items-center mb-2">
+                                                    <span className="text-sm font-medium text-slate-600 dark:text-zinc-400">Deposit / Retainer:</span>
+                                                    <div className="flex gap-2">
+                                                        <select
+                                                            value={doc.deposit_type || 'fixed'}
+                                                            onChange={e => setDoc(p => ({ ...p, deposit_type: e.target.value as 'fixed' | 'percentage' }))}
+                                                            className="p-1 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                        >
+                                                            <option value="fixed">$ Fixed</option>
+                                                            <option value="percentage">% Percent</option>
+                                                        </select>
+                                                        <input
+                                                            type="number"
+                                                            value={doc.deposit_amount || 0}
+                                                            onChange={e => setDoc(p => ({ ...p, deposit_amount: parseFloat(e.target.value) || 0 }))}
+                                                            className="w-20 p-1 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-right"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                {doc.deposit_amount && doc.deposit_amount > 0 && (
+                                                    <div className="flex justify-between font-bold text-primary-600 dark:text-primary-400">
+                                                        <span>Balance Due:</span>
+                                                        <span>
+                                                            {(doc.total - (doc.deposit_type === 'percentage' ? (doc.total * (doc.deposit_amount / 100)) : doc.deposit_amount)).toFixed(2)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Notes Section */}
+                        <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4">
+                            <SectionHeader title="Notes & Terms" isOpen={sections.notes} onClick={() => toggleSection('notes')} />
+                            {sections.notes && (
+                                <div className="p-4 space-y-4 bg-white dark:bg-zinc-900">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Notes</label>
+                                        <textarea value={doc.notes} onChange={e => setDoc(p => ({ ...p, notes: e.target.value }))} rows={4} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" placeholder="Thank you for your business!" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Terms & Conditions</label>
+                                        <textarea value={doc.terms} onChange={e => setDoc(p => ({ ...p, terms: e.target.value }))} rows={4} className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700" placeholder="Payment terms, delivery details, etc." />
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Templates */}
-                        <div>
-                            <h2 className="text-lg font-semibold mb-2">Template</h2>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {TEMPLATES.map(template => (
-                                    <div key={template.id} onClick={() => setDoc(p => ({ ...p, template_id: template.id }))} className={`cursor-pointer border-2 rounded-lg overflow-hidden transition ${doc.template_id === template.id ? 'border-primary-500' : 'border-transparent hover:border-primary-300'}`}>
-                                        <div className="w-full h-auto aspect-[5/7] border-b border-slate-200 dark:border-zinc-800">
-                                            <template.previewComponent />
-                                        </div>
-                                        <p className="text-center p-1 text-sm bg-slate-100 dark:bg-zinc-800">{template.name}</p>
+                        <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4">
+                            <SectionHeader
+                                title="Styling"
+                                isOpen={sections.design}
+                                onClick={() => toggleSection('design')}
+                            />
+                            {sections.design && (
+                                <div className="p-4 bg-white dark:bg-zinc-900">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                        {TEMPLATES.map(template => (
+                                            <div key={template.id} onClick={() => setDoc(p => ({ ...p, template_id: template.id }))} className={`cursor-pointer border-2 rounded-lg overflow-hidden transition ${doc.template_id === template.id ? 'border-primary-500' : 'border-transparent hover:border-primary-300'}`}>
+                                                <div className="aspect-[3/4] grid place-items-center bg-slate-100 dark:bg-zinc-900 overflow-hidden">
+                                                    {/* Abstract Preview */}
+                                                    <template.previewComponent document={{ ...currentDocument, id: 'preview' }} companyInfo={companyInfo} profile={null} />
+                                                </div>
+                                                <p className="text-center p-2 text-sm font-medium bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800">{template.name}</p>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

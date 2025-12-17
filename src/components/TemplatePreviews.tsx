@@ -19,11 +19,11 @@ const PreviewCard: React.FC<{
 export const ModernPreview = () => (
   <PreviewCard
     fontClass="font-sans"
-    textPrimary="text-primary-600"
+    textPrimary="text-blue-600"
     textSecondary="text-slate-700 dark:text-zinc-300"
     bgClass="bg-slate-200 dark:bg-zinc-700"
   >
-    <div className="w-full h-1 bg-primary-500 rounded-full"></div>
+    <div className="w-full h-1 bg-blue-500 rounded-full"></div>
   </PreviewCard>
 );
 
@@ -155,5 +155,15 @@ export const SwissPreview = () => (
     bgClass="bg-gray-100 dark:bg-zinc-700"
   >
     <div className="w-full h-2 bg-red-600"></div>
+  </PreviewCard>
+);
+export const SimplePreview = () => (
+  <PreviewCard
+    fontClass="font-serif"
+    textPrimary="text-slate-800 dark:text-zinc-200"
+    textSecondary="text-slate-600 dark:text-zinc-400"
+    bgClass="bg-white dark:bg-zinc-800"
+  >
+    <div className="w-full h-px bg-slate-300 dark:bg-zinc-600"></div>
   </PreviewCard>
 );

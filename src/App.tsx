@@ -7,12 +7,13 @@ import {
   Expense,
 } from './types';
 import { THEMES } from './constants';
+import { FEATURES } from './config/features';
 import Sidebar from './components/Sidebar';
+import HeaderNavigation from './components/HeaderNavigation';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
 import CrmView from './components/CrmView';
 import DocumentEditor from './components/DocumentEditor';
-import ProposalEditor from './components/ProposalEditor';
 import TextDocumentEditor from './components/TextDocumentEditor';
 
 import BillsAndExpenses, { ExpenseModal } from './components/BillsAndExpenses';
@@ -159,11 +160,7 @@ const App: React.FC = () => {
   const handleEditDocument = (doc: Document) => {
     setDocumentToEdit(doc);
     setIsSidebarVisible(true);
-    if (doc.type === DocumentType.Proposal || doc.type === DocumentType.Contract || doc.type === DocumentType.SLA) {
-      navigate('/proposal-editor');
-    } else {
-      navigate('/editor');
-    }
+    navigate('/editor');
   };
 
 
@@ -252,10 +249,19 @@ const App: React.FC = () => {
   const isEditorPage =
     location.pathname.includes('/editor');
 
+  const useHeaderNav = profile?.navigation_layout === 'header';
+
   return (
-    <div className="h-screen bg-slate-100 dark:bg-zinc-950 relative">
-      <div className="flex h-full">
-        {isSidebarVisible && (
+    <div className="h-screen bg-slate-100 dark:bg-zinc-950 relative flex flex-col">
+      {/* Conditional Navigation */}
+      {useHeaderNav ? (
+        <HeaderNavigation />
+      ) : (
+        null // Sidebar is rendered inside the flex container below if not header nav
+      )}
+
+      <div className={`flex h-full ${useHeaderNav ? 'overflow-hidden' : ''}`}>
+        {!useHeaderNav && (
           <Sidebar
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
@@ -265,11 +271,13 @@ const App: React.FC = () => {
           />
         )}
         <div className="relative flex-1 flex flex-col overflow-hidden">
-          <Header
-            setIsSidebarOpen={setIsSidebarOpen}
-            searchTerm={globalSearchTerm}
-            setSearchTerm={setGlobalSearchTerm}
-          />
+          {!useHeaderNav && (
+            <Header
+              setIsSidebarOpen={setIsSidebarOpen}
+              searchTerm={globalSearchTerm}
+              setSearchTerm={setGlobalSearchTerm}
+            />
+          )}
           <main className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/auth" element={<Navigate to="/dashboard" />} />
@@ -330,22 +338,24 @@ const App: React.FC = () => {
                 }
               />
               <Route path="/new" element={<Navigate to="/editor" />} />
-              <Route
-                path="/files"
-                element={
-                  <Files
-                    documents={documents}
-                    companyInfo={companyInfo}
-                    editDocument={handleEditDocument}
-                    updateDocument={handleUpdateDocument}
-                    deleteDocument={deleteDocument}
-                    bulkDeleteDocuments={bulkDeleteDocuments}
-                    searchTerm={globalSearchTerm}
-                    onCreateNew={clearActiveDocuments}
-                    onAddCustomer={() => setIsCustomerModalOpen(true)}
-                  />
-                }
-              />
+              {FEATURES.ENABLE_FILES && (
+                <Route
+                  path="/files"
+                  element={
+                    <Files
+                      documents={documents}
+                      companyInfo={companyInfo}
+                      editDocument={handleEditDocument}
+                      updateDocument={handleUpdateDocument}
+                      deleteDocument={deleteDocument}
+                      bulkDeleteDocuments={bulkDeleteDocuments}
+                      searchTerm={globalSearchTerm}
+                      onCreateNew={clearActiveDocuments}
+                      onAddCustomer={() => setIsCustomerModalOpen(true)}
+                    />
+                  }
+                />
+              )}
               {/* <Route path="/documents" element={<DocumentsPage />} /> */}
               <Route
                 path="/editor"
@@ -361,21 +371,7 @@ const App: React.FC = () => {
                   />
                 }
               />
-              <Route
-                path="/proposal-editor"
-                element={
-                  <ProposalEditor
-                    customers={customers}
-                    addDocument={handleAddDocument}
-                    updateDocument={handleUpdateDocument}
-                    deleteDocument={deleteDocument}
-                    documentToEdit={documentToEdit}
-                    companyInfo={companyInfo}
-                    expenses={expenses}
-                    onAddCustomer={() => setIsCustomerModalOpen(true)}
-                  />
-                }
-              />
+
               <Route path="/text-editor" element={<TextDocumentEditor />} />
               <Route path="/text-editor/:id" element={<TextDocumentEditor />} />
 
@@ -383,16 +379,18 @@ const App: React.FC = () => {
                 path="/expenses"
                 element={<Navigate to="/bills-and-expenses" replace />}
               />
-              <Route
-                path="/bills-and-expenses"
-                element={
-                  <BillsAndExpenses
-                    expenses={expenses}
-                    customers={customers}
-                    openExpenseModal={openExpenseModal}
-                  />
-                }
-              />
+              {FEATURES.ENABLE_BILLS && (
+                <Route
+                  path="/bills-and-expenses"
+                  element={
+                    <BillsAndExpenses
+                      expenses={expenses}
+                      customers={customers}
+                      openExpenseModal={openExpenseModal}
+                    />
+                  }
+                />
+              )}
               <Route
                 path="/calendar"
                 element={
@@ -493,29 +491,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {isEditorPage && (
-        <button
-          onClick={() => setIsSidebarVisible(!isSidebarVisible)}
-          className={`fixed top-1/2 -translate-y-1/2 z-50 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-full w-7 h-7 flex items-center justify-center shadow-md hover:bg-slate-100 dark:hover:bg-zinc-700 transition-all duration-300 text-slate-500 dark:text-zinc-400`}
-          style={{ left: isSidebarVisible ? 'calc(16rem - 14px)' : '14px' }}
-          title={isSidebarVisible ? 'Collapse sidebar' : 'Expand sidebar'}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={3}
-            stroke="currentColor"
-            className="w-4 h-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d={isSidebarVisible ? 'M15.75 19.5L8.25 12l7.5-7.5' : 'M8.25 4.5l7.5 7.5-7.5 7.5'}
-            />
-          </svg>
-        </button>
-      )}
+
     </div>
   );
 };

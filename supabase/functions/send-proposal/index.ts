@@ -3,7 +3,7 @@ import { Resend } from 'npm:resend';
 import { corsHeaders } from '../_shared/cors.ts';
 import { generatePDF, InvoiceData, CompanyInfo } from '../_shared/pdfGenerator.ts';
 
-const RESEND_API_KEY = 're_Pc9qUPxD_NusbQjVykz7cJMvJXn9vC3KY'; // Hardcoded for dev as requested
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
 const resend = new Resend(RESEND_API_KEY);
 

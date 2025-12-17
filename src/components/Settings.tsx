@@ -272,7 +272,7 @@ interface SettingsProps {
   addEmailTemplate: (template: Omit<EmailTemplate, 'id' | 'created_at' | 'user_id'>) => void;
   updateEmailTemplate: (template: EmailTemplate) => void;
   deleteEmailTemplate: (templateId: string) => void;
-  profile: { stripe_account_id?: string, stripe_account_setup_complete?: boolean } | null;
+  profile: { stripe_account_id?: string, stripe_account_setup_complete?: boolean, navigation_layout?: 'sidebar' | 'header' } | null;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -603,6 +603,30 @@ const Settings: React.FC<SettingsProps> = ({
                     )}
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-6 border-t border-slate-100 dark:border-zinc-800 pt-6">
+                <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-3 uppercase tracking-wider">Navigation Layout</label>
+                <div className="flex gap-2 p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg inline-flex">
+                  <button
+                    onClick={() => updateProfile({ navigation_layout: 'sidebar' })}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${(!profile?.navigation_layout || profile?.navigation_layout === 'sidebar')
+                      ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    Sidebar
+                  </button>
+                  <button
+                    onClick={() => updateProfile({ navigation_layout: 'header' })}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${profile?.navigation_layout === 'header'
+                      ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                  >
+                    Header Tabs
+                  </button>
+                </div>
               </div>
             </div>
           </div>

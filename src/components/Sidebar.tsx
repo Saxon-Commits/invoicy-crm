@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { FEATURES } from '../config/features';
 
 const NavIcon: React.FC<{ path: string }> = ({ path }) => (
   <svg
@@ -42,18 +43,18 @@ const Sidebar: React.FC<SidebarProps> = ({
       iconPath:
         'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.663M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0z',
     },
-    {
+    ...(FEATURES.ENABLE_FILES ? [{
       to: '/files',
       label: 'Files',
       iconPath:
         'M3.75 9.75h16.5v11.25a2.25 2.25 0 01-2.25 2.25h-12a2.25 2.25 0 01-2.25-2.25V9.75zM3.75 9.75A2.25 2.25 0 001.5 7.5v-2.25A2.25 2.25 0 013.75 3h16.5a2.25 2.25 0 012.25 2.25v2.25a2.25 2.25 0 00-2.25 2.25H3.75z',
-    },
-    {
+    }] : []),
+    ...(FEATURES.ENABLE_BILLS ? [{
       to: '/bills-and-expenses',
       label: 'Bills & Expenses',
       iconPath:
         'M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-1.5h5.25m-5.25 0h5.25m0 0h5.25m-5.25 0h5.25M3.75 6H7.5v3.75H3.75V6zM3.75 14.25H7.5v3.75H3.75v-3.75z',
-    },
+    }] : []),
     {
       to: '/calendar',
       label: 'Calendar',
