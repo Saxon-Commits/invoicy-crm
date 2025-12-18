@@ -2,13 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 
 interface PaginatedContentProps {
     content: string;
+    pageClassName?: string;
 }
 
 const A4_HEIGHT_PX = 1123; // A4 height in pixels at 96 DPI
 const PAGE_PADDING_PX = 80; // Total vertical padding (40px top + 40px bottom)
 const CONTENT_HEIGHT_PX = A4_HEIGHT_PX - PAGE_PADDING_PX;
 
-const PaginatedContent: React.FC<PaginatedContentProps> = ({ content }) => {
+const PaginatedContent: React.FC<PaginatedContentProps> = ({ content, pageClassName = 'bg-white' }) => {
     const [pages, setPages] = useState<string[]>([]);
     const measureRef = useRef<HTMLDivElement>(null);
 
@@ -107,11 +108,11 @@ const PaginatedContent: React.FC<PaginatedContentProps> = ({ content }) => {
             {pages.map((pageContent, index) => (
                 <div
                     key={index}
-                    className="bg-white text-slate-800 p-[40px] font-sans relative shadow-xl flex flex-col overflow-hidden shrink-0"
-                    style={{ width: '794px', height: '1123px', minHeight: '1123px', maxHeight: '1123px' }}
+                    className={`${pageClassName} shadow-xl mx-auto mb-8 relative overflow-hidden print:shadow-none print:mb-0 print:break-after-page`}
+                    style={{ width: '794px', height: '1123px' }}
                 >
                     <div
-                        className="prose prose-slate max-w-none h-full"
+                        className="p-[40px] h-full flex flex-col font-sans"
                         dangerouslySetInnerHTML={{ __html: pageContent }}
                     />
 

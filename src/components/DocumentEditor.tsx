@@ -36,6 +36,7 @@ const getInitialState = (customers: Customer[]): NewDocumentData => {
         tax: 10,
         total: 0,
         notes: 'Thank you for your business!',
+        show_line_items_table: true,
     };
 };
 
@@ -426,6 +427,17 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
                             <SectionHeader title="Items" isOpen={sections.items} onClick={() => toggleSection('items')} />
                             {sections.items && (
                                 <div className="p-4 bg-white dark:bg-zinc-900">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <label className="flex items-center space-x-2 text-sm text-slate-600 dark:text-zinc-400 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={doc.show_line_items_table !== false}
+                                                onChange={(e) => setDoc(prev => ({ ...prev, show_line_items_table: e.target.checked }))}
+                                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                            />
+                                            <span>Include Pricing Table</span>
+                                        </label>
+                                    </div>
                                     <div className="space-y-2">
                                         {doc.items.map((item) => (
                                             <div key={item.id} className="flex gap-2 items-center">
@@ -458,6 +470,134 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
                                 </div>
                             )}
                         </div>
+
+                        {/* Proposal Details */}
+                        {doc.type === DocumentType.Proposal && (
+                            <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4">
+                                <SectionHeader title="Proposal Details" isOpen={sections.typeSpecific} onClick={() => toggleSection('typeSpecific')} />
+                                {sections.typeSpecific && (
+                                    <div className="p-4 space-y-4 bg-white dark:bg-zinc-900">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Executive Summary</label>
+                                            <textarea
+                                                value={doc.proposal_summary || ''}
+                                                onChange={e => setDoc(p => ({ ...p, proposal_summary: e.target.value }))}
+                                                rows={4}
+                                                className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                placeholder="Brief overview of the proposal..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Scope of Work</label>
+                                            <textarea
+                                                value={doc.proposal_scope || ''}
+                                                onChange={e => setDoc(p => ({ ...p, proposal_scope: e.target.value }))}
+                                                rows={4}
+                                                className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                placeholder="Detailed scope regarding deliverables..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Timeline</label>
+                                            <textarea
+                                                value={doc.proposal_timeline || ''}
+                                                onChange={e => setDoc(p => ({ ...p, proposal_timeline: e.target.value }))}
+                                                rows={3}
+                                                className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                placeholder="Estimated project timeline..."
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Investment</label>
+                                                <textarea
+                                                    value={doc.proposal_investment || ''}
+                                                    onChange={e => setDoc(p => ({ ...p, proposal_investment: e.target.value }))}
+                                                    rows={3}
+                                                    className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                    placeholder="Investment details..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Next Steps</label>
+                                                <textarea
+                                                    value={doc.proposal_next_steps || ''}
+                                                    onChange={e => setDoc(p => ({ ...p, proposal_next_steps: e.target.value }))}
+                                                    rows={3}
+                                                    className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                    placeholder="What happens next..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Contract/SLA Details */}
+                        {(doc.type === DocumentType.Contract || doc.type === DocumentType.SLA) && (
+                            <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4">
+                                <SectionHeader title={`${doc.type} Terms`} isOpen={sections.typeSpecific} onClick={() => toggleSection('typeSpecific')} />
+                                {sections.typeSpecific && (
+                                    <div className="p-4 space-y-4 bg-white dark:bg-zinc-900">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Agreement Scope</label>
+                                            <textarea
+                                                value={doc.contract_scope || ''}
+                                                onChange={e => setDoc(p => ({ ...p, contract_scope: e.target.value }))}
+                                                rows={4}
+                                                className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                placeholder="Scope of the agreement..."
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Payment Schedule</label>
+                                                <textarea
+                                                    value={doc.contract_payment_schedule || ''}
+                                                    onChange={e => setDoc(p => ({ ...p, contract_payment_schedule: e.target.value }))}
+                                                    rows={3}
+                                                    className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                    placeholder="Payment terms and dates..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Obligations</label>
+                                                <textarea
+                                                    value={doc.contract_obligations || ''}
+                                                    onChange={e => setDoc(p => ({ ...p, contract_obligations: e.target.value }))}
+                                                    rows={3}
+                                                    className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                    placeholder="Party obligations..."
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Revisions Policy</label>
+                                                <textarea
+                                                    value={doc.contract_revisions || ''}
+                                                    onChange={e => setDoc(p => ({ ...p, contract_revisions: e.target.value }))}
+                                                    rows={2}
+                                                    className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                    placeholder="Revisions policy..."
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">Cancellation</label>
+                                                <textarea
+                                                    value={doc.contract_cancellation || ''}
+                                                    onChange={e => setDoc(p => ({ ...p, contract_cancellation: e.target.value }))}
+                                                    rows={2}
+                                                    className="w-full p-2 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                    placeholder="Cancellation terms..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Financials Section */}
                         <div className="border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden mb-4">

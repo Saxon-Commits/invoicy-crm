@@ -9,6 +9,161 @@ interface ExtendedPreviewProps extends PreviewProps {
   showFooter: boolean;
 }
 
+interface ProposalStyleOptions {
+  header: string;
+  subHeader: string;
+  sectionTitle: string;
+  bodyText: string;
+  tableHeader: string;
+  borderColor: string;
+  isDark?: boolean;
+}
+
+const generateProposalHTML = (
+  document: Document,
+  companyInfo: CompanyInfo,
+  styles: ProposalStyleOptions
+): string => {
+  // 1. Generate Content HTML from structured fields if 'content' is empty
+  let contentHtml = document.content || '';
+
+  if (!contentHtml) {
+    // --- A. Document Header (Logo, Title, Client) ---
+    // We inject this SOLELY for PaginatedContent to render it as part of the flow
+    const dateLabel = document.type === DocumentType.Quote ? 'Valid Until' : 'Date';
+    const clientLabel = (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) ? 'Prepared For' : 'Billed To';
+
+    contentHtml += `
+            <div class="mb-12">
+                <div class="flex justify-between items-start mb-8">
+                     <div>
+                        ${companyInfo.logo ? `<img src="${companyInfo.logo}" class="h-12 object-contain mb-4 ${styles.isDark ? 'brightness-0 invert' : ''}" />` : `<h1 class="text-2xl font-bold ${styles.header}">${companyInfo.name}</h1>`}
+                        <div class="text-sm text-slate-500">
+                            <p>${companyInfo.address}</p>
+                            <p>${companyInfo.email}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <h1 class="text-4xl font-bold ${styles.header} mb-2 uppercase tracking-tight">${document.type}</h1>
+                        <p class="text-sm text-slate-500"># ${document.doc_number}</p>
+                        <p class="text-sm text-slate-500">${dateLabel}: ${document.issue_date}</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-end border-b pb-8 ${styles.borderColor}">
+                    <div>
+                        <p class="text-xs uppercase tracking-wider text-slate-400 mb-1">${clientLabel}</p>
+                        <h2 class="text-xl font-bold ${styles.isDark ? 'text-white' : 'text-slate-900'}">${document.customer?.name}</h2>
+                        ${document.customer?.address ? `<p class="text-sm text-slate-500">${document.customer.address}</p>` : ''}
+                        ${document.customer?.email ? `<p class="text-sm text-slate-500">${document.customer.email}</p>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+    // --- B. Structured Sections ---
+    const section = (title: string, body?: string) => body ? `
+            <div class="mb-8 avoid-break">
+                <h2 class="${styles.sectionTitle}">${title}</h2>
+                <div class="${styles.bodyText}">${body}</div>
+            </div>
+        ` : '';
+
+    if (document.type === DocumentType.Proposal) {
+      contentHtml += section('Executive Summary', document.proposal_summary);
+      contentHtml += section('Scope of Work', document.proposal_scope);
+      contentHtml += section('Timeline', document.proposal_timeline);
+      contentHtml += section('Investment', document.proposal_investment);
+      contentHtml += section('Next Steps', document.proposal_next_steps);
+    } else {
+      contentHtml += section('Agreement Scope', document.contract_scope);
+      contentHtml += section('Payment Schedule', document.contract_payment_schedule);
+      contentHtml += section('Obligations', document.contract_obligations);
+      contentHtml += section('Revisions', document.contract_revisions);
+      contentHtml += section('Cancellation Policy', document.contract_cancellation);
+    }
+
+    // --- C. Pricing Table (Optional) ---
+    if (document.show_line_items_table !== false && document.items && document.items.length > 0) {
+      const itemsRows = document.items.map(item => `
+                <tr class="border-b ${styles.borderColor}">
+                    <td class="py-3 px-4 text-sm text-slate-700">${item.description}</td>
+                    <td class="py-3 px-4 text-sm text-slate-700 text-center">${item.quantity}</td>
+                    <td class="py-3 px-4 text-sm text-slate-700 text-right">$${item.price.toFixed(2)}</td>
+                    <td class="py-3 px-4 text-sm ${styles.isDark ? 'text-white' : 'text-slate-900'} font-medium text-right">$${(item.quantity * item.price).toFixed(2)}</td>
+                </tr>
+            `).join('');
+
+      contentHtml += `
+                <div class="mb-12 mt-8 avoid-break">
+                    <h2 class="${styles.sectionTitle}">Pricing Estimate</h2>
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="${styles.tableHeader}">
+                                <th class="py-2 px-4 text-xs uppercase tracking-wider font-semibold rounded-l-md">Description</th>
+                                <th class="py-2 px-4 text-xs uppercase tracking-wider font-semibold text-center">Qty</th>
+                                <th class="py-2 px-4 text-xs uppercase tracking-wider font-semibold text-right">Price</th>
+                                <th class="py-2 px-4 text-xs uppercase tracking-wider font-semibold text-right rounded-r-md">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsRows}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" class="py-4 px-4 text-right text-sm font-medium text-slate-500">Total</td>
+                                <td class="py-4 px-4 text-right text-lg font-bold ${styles.isDark ? 'text-white' : 'text-slate-900'}">$${document.total?.toFixed(2) || '0.00'}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+    }
+
+    // --- D. Notes & Terms ---
+    if (document.notes) {
+      contentHtml += section('Notes', document.notes);
+    }
+    if (document.terms) {
+      contentHtml += section('Terms & Conditions', document.terms);
+    }
+  }
+
+  // 2. Append Signature
+  const signatureHtml = `
+      <div class="mt-12 pt-8 border-t border-slate-200 avoid-break">
+        <h3 class="text-lg font-bold ${styles.isDark ? 'text-white' : 'text-slate-900'} mb-8">Signatures</h3>
+        <div class="grid grid-cols-2 gap-12">
+          <div>
+            <div class="h-24 flex flex-col justify-end">
+              <p class="text-sm font-bold ${styles.isDark ? 'text-white' : 'text-slate-900'} mb-1">${companyInfo.name}</p>
+              <div class="border-b border-slate-300 w-full mb-2"></div>
+            </div>
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Authorized Signature</p>
+          </div>
+          <div>
+            <div class="h-24 flex flex-col justify-end relative">
+              ${document.signature ? `
+                <img src="${document.signature}" alt="Customer Signature" class="h-16 mb-2 object-contain absolute bottom-2 left-0" />
+              ` : `
+                <div class="absolute bottom-4 left-0 text-slate-300 text-4xl font-serif italic select-none pointer-events-none">
+                  x <span class="text-sm font-sans not-italic ml-2">Sign Here</span>
+                </div>
+              `}
+              <p class="text-sm font-bold ${styles.isDark ? 'text-white' : 'text-slate-900'} mb-1">${document.customer?.name || ''}</p>
+              <div class="border-b border-slate-300 w-full mb-2"></div>
+            </div>
+            <p class="text-xs text-slate-500 uppercase tracking-wider">Customer Signature</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+  // Only append signature if it's a contract-like document
+  const shouldShowSignature = document.type === DocumentType.Contract || document.type === DocumentType.SLA || document.type === DocumentType.Proposal;
+  return contentHtml + (shouldShowSignature ? signatureHtml : '');
+};
+
 const TemplateModern: React.FC<ExtendedPreviewProps> = ({
   document,
   companyInfo,
@@ -17,62 +172,41 @@ const TemplateModern: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
-  // For proposals, use the PaginatedContent component
+  // For proposals, use the PaginatedContent component with generated HTML
   if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+
+    // 1. Determine Styling based on Template ID
+    const templateId = document.template_id || 'modern';
+    const isModern = templateId === 'modern';
+    const isCreative = templateId === 'creative' || templateId === 'bold';
+
+    // Styles for modern/creative logic (keeping existing logic for 'modern' template which has sub-variants)
+    const styles: ProposalStyleOptions = {
+      header: isModern ? 'text-blue-600' : (isCreative ? 'text-fuchsia-500' : 'text-slate-900'),
+      subHeader: isModern ? 'text-slate-500' : 'text-slate-400',
+      sectionTitle: isModern
+        ? 'text-xl font-bold text-blue-800 mb-3 border-b border-blue-100 pb-2'
+        : (isCreative ? 'text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500 mb-3 border-b border-zinc-800 pb-2' : 'text-xl font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2 uppercase tracking-wide'),
+      bodyText: 'text-slate-700 leading-relaxed whitespace-pre-wrap',
+      tableHeader: isModern ? 'bg-blue-50 text-blue-900' : (isCreative ? 'bg-zinc-800 text-fuchsia-400' : 'bg-slate-100 text-slate-700'),
+      borderColor: isCreative ? 'border-zinc-800' : 'border-slate-100',
+      isDark: false // TemplateModern is generally light-themed, even if it has 'Creative' accents here, the page is white.
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    // Ensure we don't render empty content empty page if nothing is filled
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto" style={{ width: '794px' }}>
-        <PaginatedContent content={document.content || ''} />
-
-        {/* Signature Section - appended to the last page or separate if needed. 
-                For now, PaginatedContent handles the content splitting. 
-                If we want the signature to be part of the flow, it should ideally be part of the HTML content.
-                However, since signature is a separate UI element here, we might need to append it.
-                The current PaginatedContent doesn't support appending arbitrary React nodes easily.
-                Let's simplify: For proposals, we assume the content includes everything or we render signature after.
-                But rendering after might create a new page or overflow.
-                
-                IMPROVEMENT: We can make PaginatedContent accept children or a footer prop.
-                For this iteration, let's render the signature in a separate A4 page if it doesn't fit, 
-                or just append it and let the user manage spacing via the editor.
-                
-                Actually, the requirement is "don't just extend down".
-                So we should wrap the signature in a page if possible.
-            */}
-        {(document.type === DocumentType.Contract || document.type === DocumentType.SLA || document.type === DocumentType.Proposal) && (
-          <div className="bg-white text-slate-800 p-[40px] font-sans relative shadow-xl mx-auto flex flex-col mt-8" style={{ width: '794px', minHeight: '1123px' }}>
-            <div className="flex-grow"></div>
-            <div className="mt-auto pt-12 border-t border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900 mb-1">Signatures</h3>
-              <div className="grid grid-cols-2 gap-12">
-                <div>
-                  <div className="h-24 flex flex-col justify-end">
-                    <p className="text-sm font-bold text-slate-900 mb-1">{companyInfo.name}</p>
-                    <div className="border-b border-slate-300 w-full mb-2"></div>
-                  </div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Authorized Signature</p>
-                </div>
-                <div>
-                  <div className="h-24 flex flex-col justify-end relative">
-                    {document.signature ? (
-                      <img src={document.signature} alt="Customer Signature" className="h-16 mb-2 object-contain absolute bottom-2 left-0" />
-                    ) : (
-                      <div className="absolute bottom-4 left-0 text-slate-300 text-4xl font-serif italic select-none pointer-events-none">
-                        x <span className="text-sm font-sans not-italic ml-2">Sign Here</span>
-                      </div>
-                    )}
-                    <p className="text-sm font-bold text-slate-900 mb-1">{document.customer?.name}</p>
-                    <div className="border-b border-slate-300 w-full mb-2"></div>
-                  </div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wider">Customer Signature</p>
-                </div>
-              </div>
-            </div>
-            {/* Page Number for Signature Page */}
-            <div className="absolute bottom-4 right-8 text-xs text-slate-400">
-              Signature Page
-            </div>
-          </div>
-        )}
+        <PaginatedContent content={fullContent} />
       </div>
     );
   }
@@ -246,149 +380,199 @@ const TemplateClassic: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
-  return (
-    <div className="bg-white text-gray-900 p-[40px] font-serif relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', minHeight: '1123px' }}>
-      {document.status === DocumentStatus.Paid && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <div
-            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
-          >
-            PAID
-          </div>
+  // For proposals, use the PaginatedContent component with generated HTML and Classic styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-serif text-gray-900',
+      subHeader: 'font-serif text-gray-500',
+      sectionTitle: 'text-2xl font-serif font-bold text-gray-900 mb-4 border-b-2 border-gray-200 pb-2',
+      bodyText: 'font-serif text-gray-800 leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-gray-100 text-gray-900 font-serif',
+      borderColor: 'border-gray-200',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    // Ensure we don't render empty content empty page if nothing is filled
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
         </div>
-      )}
-      {showHeader && (
-        <>
-          <header className="text-center mb-10">
-            {companyInfo.logo && (
-              <img
-                src={companyInfo.logo}
-                alt="Company Logo"
-                className="h-20 w-auto mx-auto mb-4 object-contain"
-              />
-            )}
-            <h1 className="text-5xl font-bold mb-2 text-gray-900">{companyInfo.name}</h1>
-            <p className="text-gray-600 whitespace-pre-wrap">{companyInfo.address}</p>
-            {companyInfo.abn && <p className="text-gray-600">ABN: {companyInfo.abn}</p>}
-          </header>
-          <div className="w-full h-px bg-gray-300 my-8"></div>
-          <section className="flex justify-between mb-8 flex-row gap-4">
-            <div>
-              <h2 className="text-2xl font-semibold mb-2 text-gray-800">{document.type}</h2>
-              {/* Fix: Changed docNumber to doc_number */}
-              <p>
-                <span className="font-semibold text-gray-700">Number:</span> {document.doc_number}
-              </p>
-              {/* Fix: Changed issueDate to issue_date */}
-              <p>
-                <span className="font-semibold text-gray-700">Issue Date:</span> {document.issue_date}
-              </p>
-              {/* Fix: Changed dueDate to due_date */}
-              <p>
-                <span className="font-semibold text-gray-700">{document.type === DocumentType.Quote ? 'Valid To:' : 'Due Date:'}</span> {document.due_date}
-              </p>
-            </div>
-            <div className="text-right">
-              <h3 className="font-semibold mb-1 text-gray-700">Billed To:</h3>
-              <p className="text-gray-800">{document.customer?.name}</p>
-              <p className="text-gray-600">{document.customer?.address}</p>
-              <p className="text-gray-600">{document.customer?.email}</p>
-            </div>
-          </section>
-        </>
-      )}
+      );
+    }
 
-      <section className="flex-grow">
-        <table className="w-full border-collapse border border-gray-300">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border border-gray-300 p-2 text-left">Item Description</th>
-              <th className="border border-gray-300 p-2 text-right">Quantity</th>
-              <th className="border border-gray-300 p-2 text-right">Price</th>
-              <th className="border border-gray-300 p-2 text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td className="border border-gray-300 p-2 whitespace-pre-wrap">{item.description}</td>
-                <td className="border border-gray-300 p-2 text-right">{item.quantity}</td>
-                <td className="border border-gray-300 p-2 text-right">${item.price.toFixed(2)}</td>
-                <td className="border border-gray-300 p-2 text-right">
-                  ${(item.quantity * item.price).toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+    return (
+      <div className="mx-auto font-serif" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-white text-gray-900 font-serif" />
+      </div>
+    );
+  }
 
-      {showFooter && (
-        <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
-            <div className="my-6 text-center">
-              <a
-                href={document.stripe_payment_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+  // Pagination Logic
+  const ITEMS_PER_PAGE = 12;
+  const pages = [];
+  for (let i = 0; i < items.length; i += ITEMS_PER_PAGE) {
+    pages.push(items.slice(i, i + ITEMS_PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]);
+
+  return (
+    <div className="flex flex-col gap-8 items-center cursor-default">
+      {pages.map((pageItems, pageIndex) => (
+        <div key={pageIndex} className="bg-white text-gray-900 p-[40px] font-serif relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', height: '1123px' }}>
+          {document.status === DocumentStatus.Paid && pageIndex === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div
+                className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
               >
-                Pay Now
-              </a>
+                PAID
+              </div>
             </div>
           )}
 
-          <section className="flex justify-end mt-4">
-            <table className="w-1/3 text-gray-800">
-              <tbody>
-                <tr>
-                  <td className="p-1 text-right">Subtotal:</td>
-                  <td className="p-1 text-right">${document.subtotal.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td className="p-1 text-right">Tax ({document.tax}%):</td>
-                  <td className="p-1 text-right">
-                    ${((document.subtotal * document.tax) / 100).toFixed(2)}
-                  </td>
-                </tr>
-                <tr className="font-bold text-lg">
-                  <td className="p-1 text-right border-t-2 border-gray-800">Total:</td>
-                  <td className="p-1 text-right border-t-2 border-gray-800">
-                    ${document.total.toFixed(2)}
-                  </td>
-                </tr>
-                {document.deposit_amount && document.deposit_amount > 0 && (
-                  <>
-                    <tr>
-                      <td className="p-1 text-right text-gray-600">Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'}):</td>
-                      <td className="p-1 text-right text-gray-600">
-                        ${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr className="font-bold text-lg">
-                      <td className="p-1 text-right border-t border-gray-400">Balance Due:</td>
-                      <td className="p-1 text-right border-t border-gray-400">
-                        ${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}
-                      </td>
-                    </tr>
-                  </>
+          {/* Header - First Page Only */}
+          {showHeader && pageIndex === 0 && (
+            <>
+              <header className="text-center mb-10">
+                {companyInfo.logo && (
+                  <img
+                    src={companyInfo.logo}
+                    alt="Company Logo"
+                    className="h-20 w-auto mx-auto mb-4 object-contain"
+                  />
                 )}
+                <h1 className="text-5xl font-bold mb-2 text-gray-900">{companyInfo.name}</h1>
+                <p className="text-gray-600 whitespace-pre-wrap">{companyInfo.address}</p>
+                {companyInfo.abn && <p className="text-gray-600">ABN: {companyInfo.abn}</p>}
+              </header>
+              <div className="w-full h-px bg-gray-300 my-8"></div>
+              <section className="flex justify-between mb-8 flex-row gap-4">
+                <div>
+                  <h2 className="text-2xl font-semibold mb-2 text-gray-800">{document.type}</h2>
+                  <p>
+                    <span className="font-semibold text-gray-700">Number:</span> {document.doc_number}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-700">Issue Date:</span> {document.issue_date}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-700">{document.type === DocumentType.Quote ? 'Valid To:' : 'Due Date:'}</span> {document.due_date}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <h3 className="font-semibold mb-1 text-gray-700">Billed To:</h3>
+                  <p className="text-gray-800">{document.customer?.name}</p>
+                  <p className="text-gray-600">{document.customer?.address}</p>
+                  <p className="text-gray-600">{document.customer?.email}</p>
+                </div>
+              </section>
+            </>
+          )}
+
+          {/* Spacer for subsequent pages to push content down if needed, or just standard padding */}
+          {!showHeader || pageIndex > 0 ? <div className="h-8"></div> : null}
+
+          <section className="flex-grow">
+            <table className="w-full border-collapse border border-gray-300">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border border-gray-300 p-2 text-left">Item Description</th>
+                  <th className="border border-gray-300 p-2 text-right">Quantity</th>
+                  <th className="border border-gray-300 p-2 text-right">Price</th>
+                  <th className="border border-gray-300 p-2 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((item) => (
+                  <tr key={item.id}>
+                    <td className="border border-gray-300 p-2 whitespace-pre-wrap">{item.description}</td>
+                    <td className="border border-gray-300 p-2 text-right">{item.quantity}</td>
+                    <td className="border border-gray-300 p-2 text-right">${item.price.toFixed(2)}</td>
+                    <td className="border border-gray-300 p-2 text-right">
+                      ${(item.quantity * item.price).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </section>
-          {document.notes && (
-            <div className="mt-10 text-sm text-gray-600">
-              <p>{document.notes}</p>
-            </div>
+
+          {/* Footer - Last Page Only */}
+          {showFooter && pageIndex === pages.length - 1 && (
+            <footer className="mt-auto">
+              {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
+                <div className="my-6 text-center">
+                  <a
+                    href={document.stripe_payment_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+                  >
+                    Pay Now
+                  </a>
+                </div>
+              )}
+
+              <section className="flex justify-end mt-4">
+                <table className="w-1/3 text-gray-800">
+                  <tbody>
+                    <tr>
+                      <td className="p-1 text-right">Subtotal:</td>
+                      <td className="p-1 text-right">${document.subtotal.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                      <td className="p-1 text-right">Tax ({document.tax}%):</td>
+                      <td className="p-1 text-right">
+                        ${((document.subtotal * document.tax) / 100).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="font-bold text-lg">
+                      <td className="p-1 text-right border-t-2 border-gray-800">Total:</td>
+                      <td className="p-1 text-right border-t-2 border-gray-800">
+                        ${document.total.toFixed(2)}
+                      </td>
+                    </tr>
+                    {document.deposit_amount && document.deposit_amount > 0 && (
+                      <>
+                        <tr>
+                          <td className="p-1 text-right text-gray-600">Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'}):</td>
+                          <td className="p-1 text-right text-gray-600">
+                            ${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}
+                          </td>
+                        </tr>
+                        <tr className="font-bold text-lg">
+                          <td className="p-1 text-right border-t border-gray-400">Balance Due:</td>
+                          <td className="p-1 text-right border-t border-gray-400">
+                            ${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}
+                          </td>
+                        </tr>
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </section>
+              {document.notes && (
+                <div className="mt-10 text-sm text-gray-600">
+                  <p>{document.notes}</p>
+                </div>
+              )}
+              {document.terms && (
+                <div className="mt-6 pt-5 border-t border-gray-300">
+                  <h3 className="font-semibold text-gray-700">Terms & Conditions</h3>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{document.terms}</p>
+                </div>
+              )}
+            </footer>
           )}
-          {document.terms && (
-            <div className="mt-6 pt-5 border-t border-gray-300">
-              <h3 className="font-semibold text-gray-700">Terms & Conditions</h3>
-              <p className="text-sm text-gray-600 whitespace-pre-wrap">{document.terms}</p>
-            </div>
-          )}
-        </footer>
-      )}
+
+          {/* Page Number */}
+          <div className="absolute bottom-4 right-8 text-xs text-gray-400">
+            Page {pageIndex + 1} of {pages.length}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -401,134 +585,181 @@ const TemplateCreative: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Creative styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-mono text-cyan-400 tracking-widest uppercase',
+      subHeader: 'font-mono text-fuchsia-400',
+      sectionTitle: 'text-2xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-500 to-cyan-500 mb-6 border-b border-slate-700 pb-2',
+      bodyText: 'font-mono text-slate-300 leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-slate-800 text-fuchsia-400 font-mono',
+      borderColor: 'border-slate-700',
+      isDark: true
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a' }}>
+          <p className="text-slate-500">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    // Note: We use a solid dark background for the creative proposal to ensure readability of long text
+    return (
+      <div className="mx-auto font-mono" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-slate-900 text-white font-mono" />
+      </div>
+    );
+  }
+
+  // Pagination Logic
+  const ITEMS_PER_PAGE = 10; // Fewer items due to larger spacing/fonts
+  const pages = [];
+  for (let i = 0; i < items.length; i += ITEMS_PER_PAGE) {
+    pages.push(items.slice(i, i + ITEMS_PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]);
+
   return (
-    <div className="bg-slate-900 text-white p-[40px] font-mono overflow-hidden relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', minHeight: '1123px' }}>
-      <div className="absolute -top-20 -left-20 w-64 h-64 bg-fuchsia-500/30 rounded-full filter blur-3xl"></div>
-      <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-cyan-500/30 rounded-full filter blur-3xl"></div>
-      {document.status === DocumentStatus.Paid && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <div
-            className="text-8xl font-black text-green-400/30 border-8 border-green-400/30 rounded-full px-8 py-4 transform -rotate-12"
-          >
-            PAID
+    <div className="flex flex-col gap-8 items-center cursor-default">
+      {pages.map((pageItems, pageIndex) => (
+        <div key={pageIndex} className="bg-slate-900 text-white p-[40px] font-mono overflow-hidden relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', height: '1123px' }}>
+          <div className="absolute -top-20 -left-20 w-64 h-64 bg-fuchsia-500/30 rounded-full filter blur-3xl"></div>
+          <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-cyan-500/30 rounded-full filter blur-3xl"></div>
+          {document.status === DocumentStatus.Paid && pageIndex === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div
+                className="text-8xl font-black text-green-400/30 border-8 border-green-400/30 rounded-full px-8 py-4 transform -rotate-12"
+              >
+                PAID
+              </div>
+            </div>
+          )}
+
+          {showHeader && pageIndex === 0 && (
+            <>
+              <header className="flex justify-between items-center mb-12 relative z-10">
+                <div>
+                  {companyInfo.logo && (
+                    <img
+                      src={companyInfo.logo}
+                      alt="Company Logo"
+                      className="h-12 w-auto mb-2 object-contain"
+                    />
+                  )}
+                  <h2 className="text-3xl font-bold tracking-widest text-white">{companyInfo.name}</h2>
+                  <p className="text-slate-400">{companyInfo.email}</p>
+                </div>
+                <div className="text-right">
+                  <h1 className="text-5xl font-extrabold text-cyan-400 uppercase">{document.type}</h1>
+                  <p className="text-fuchsia-400">{document.doc_number || '...'}</p>
+                </div>
+              </header>
+
+              <section className="flex justify-between mb-12 relative z-10 flex-row gap-4">
+                <div>
+                  <p className="text-cyan-400 uppercase text-sm">To:</p>
+                  <p className="text-lg font-bold text-white">{document.customer?.name}</p>
+                  <p className="text-slate-400">{document.customer?.address}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-cyan-400">
+                    Issue Date: <span className="text-white">{document.issue_date}</span>
+                  </p>
+                  <p className="text-cyan-400">
+                    {document.type === DocumentType.Quote ? 'Valid To:' : 'Due Date:'} <span className="text-white">{document.due_date}</span>
+                  </p>
+                </div>
+              </section>
+            </>
+          )}
+
+          {/* Spacer */}
+          {!showHeader || pageIndex > 0 ? <div className="h-12"></div> : null}
+
+          <section className="relative z-10 flex-grow">
+            <div className="border-y-2 border-cyan-400">
+              {pageItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex justify-between items-center py-3 border-b border-slate-700 last:border-b-0 flex-row text-left"
+                >
+                  <div className="flex-1 mb-0">
+                    <p className="font-bold text-lg text-white whitespace-pre-wrap">{item.description}</p>
+                    <p className="text-fuchsia-400 text-sm">
+                      {item.quantity} x ${item.price.toFixed(2)}
+                    </p>
+                  </div>
+                  <p className="text-xl font-bold text-white">
+                    ${(item.quantity * item.price).toFixed(2)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {showFooter && pageIndex === pages.length - 1 && (
+            <footer className="mt-auto relative z-10">
+              {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
+                <div className="my-6 text-center">
+                  <a
+                    href={document.stripe_payment_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-8 py-3 text-lg font-semibold rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-colors shadow-md"
+                  >
+                    Pay Now
+                  </a>
+                </div>
+              )}
+
+              <section className="flex justify-end mt-8">
+                <div className="w-2/5 space-y-2 text-lg">
+                  <div className="flex justify-between">
+                    <p className="text-slate-400">Subtotal</p>
+                    <p className="text-white">${document.subtotal.toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <p className="text-slate-400">Tax ({document.tax}%)</p>
+                    <p className="text-white">
+                      ${((document.subtotal * document.tax) / 100).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex justify-between font-bold text-3xl text-cyan-400 mt-2 pt-2 border-t-2 border-fuchsia-500">
+                    <p>Total</p>
+                    <p>${document.total.toFixed(2)}</p>
+                  </div>
+                  {document.deposit_amount && document.deposit_amount > 0 && (
+                    <>
+                      <div className="flex justify-between text-slate-400 pt-2">
+                        <p>Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'})</p>
+                        <p className="text-white">${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
+                      </div>
+                      <div className="flex justify-between font-bold text-2xl text-fuchsia-400 border-t border-slate-700 pt-2">
+                        <p>Balance</p>
+                        <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </section>
+              {document.notes && (
+                <div className="mt-12 text-center text-slate-400">
+                  <p>// {document.notes}</p>
+                </div>
+              )}
+            </footer>
+          )}
+
+          {/* Page Number */}
+          <div className="absolute bottom-4 right-8 text-xs text-slate-500">
+            Page {pageIndex + 1} of {pages.length}
           </div>
         </div>
-      )}
-
-      {showHeader && (
-        <>
-          <header className="flex justify-between items-center mb-12 relative z-10">
-            <div>
-              {companyInfo.logo && (
-                <img
-                  src={companyInfo.logo}
-                  alt="Company Logo"
-                  className="h-12 w-auto mb-2 object-contain"
-                />
-              )}
-              <h2 className="text-3xl font-bold tracking-widest text-white">{companyInfo.name}</h2>
-              <p className="text-slate-400">{companyInfo.email}</p>
-            </div>
-            <div className="text-right">
-              <h1 className="text-5xl font-extrabold text-cyan-400 uppercase">{document.type}</h1>
-              {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-fuchsia-400">{document.doc_number || '...'}</p>
-            </div>
-          </header>
-
-          <section className="flex justify-between mb-12 relative z-10 flex-row gap-4">
-            <div>
-              <p className="text-cyan-400 uppercase text-sm">To:</p>
-              <p className="text-lg font-bold text-white">{document.customer?.name}</p>
-              <p className="text-slate-400">{document.customer?.address}</p>
-            </div>
-            <div className="text-right">
-              {/* Fix: Changed issueDate to issue_date */}
-              <p className="text-cyan-400">
-                Issue Date: <span className="text-white">{document.issue_date}</span>
-              </p>
-              {/* Fix: Changed dueDate to due_date */}
-              <p className="text-cyan-400">
-                {document.type === DocumentType.Quote ? 'Valid To:' : 'Due Date:'} <span className="text-white">{document.due_date}</span>
-              </p>
-            </div>
-          </section>
-        </>
-      )}
-
-      <section className="relative z-10 flex-grow">
-        <div className="border-y-2 border-cyan-400">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex justify-between items-center py-3 border-b border-slate-700 last:border-b-0 flex-row text-left"
-            >
-              <div className="flex-1 mb-0">
-                <p className="font-bold text-lg text-white whitespace-pre-wrap">{item.description}</p>
-                <p className="text-fuchsia-400 text-sm">
-                  {item.quantity} x ${item.price.toFixed(2)}
-                </p>
-              </div>
-              <p className="text-xl font-bold text-white">
-                ${(item.quantity * item.price).toFixed(2)}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {showFooter && (
-        <footer className="mt-auto relative z-10">
-          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
-            <div className="my-6 text-center">
-              <a
-                href={document.stripe_payment_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3 text-lg font-semibold rounded-lg bg-cyan-400 text-slate-900 hover:bg-cyan-300 transition-colors shadow-md"
-              >
-                Pay Now
-              </a>
-            </div>
-          )}
-
-          <section className="flex justify-end mt-8">
-            <div className="w-2/5 space-y-2 text-lg">
-              <div className="flex justify-between">
-                <p className="text-slate-400">Subtotal</p>
-                <p className="text-white">${document.subtotal.toFixed(2)}</p>
-              </div>
-              <div className="flex justify-between">
-                <p className="text-slate-400">Tax ({document.tax}%)</p>
-                <p className="text-white">
-                  ${((document.subtotal * document.tax) / 100).toFixed(2)}
-                </p>
-              </div>
-              <div className="flex justify-between font-bold text-3xl text-cyan-400 mt-2 pt-2 border-t-2 border-fuchsia-500">
-                <p>Total</p>
-                <p>${document.total.toFixed(2)}</p>
-              </div>
-              {document.deposit_amount && document.deposit_amount > 0 && (
-                <>
-                  <div className="flex justify-between text-slate-400 pt-2">
-                    <p>Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'})</p>
-                    <p className="text-white">${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
-                  </div>
-                  <div className="flex justify-between font-bold text-2xl text-fuchsia-400 border-t border-slate-700 pt-2">
-                    <p>Balance</p>
-                    <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </section>
-          {document.notes && (
-            <div className="mt-12 text-center text-slate-400">
-              <p>// {document.notes}</p>
-            </div>
-          )}
-        </footer>
-      )}
+      ))}
     </div>
   );
 };
@@ -541,144 +772,199 @@ const TemplateMinimalist: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Minimalist styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-light uppercase tracking-widest text-gray-800',
+      subHeader: 'font-light text-gray-500',
+      sectionTitle: 'text-xl font-normal uppercase tracking-widest text-gray-800 mb-6 pb-2 border-b border-gray-100',
+      bodyText: 'font-sans font-light text-gray-600 leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-white text-gray-500 uppercase tracking-widest text-xs border-b border-gray-200',
+      borderColor: 'border-gray-100',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-sans font-light" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-white text-gray-800 font-sans font-light" />
+      </div>
+    );
+  }
+
+  // Pagination Logic
+  const ITEMS_PER_PAGE = 12;
+  const pages = [];
+  for (let i = 0; i < items.length; i += ITEMS_PER_PAGE) {
+    pages.push(items.slice(i, i + ITEMS_PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]);
+
   return (
-    <div className="bg-white text-gray-800 p-[40px] font-light font-sans relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', minHeight: '1123px' }}>
-      {document.status === DocumentStatus.Paid && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-          <div
-            className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
-          >
-            PAID
+    <div className="flex flex-col gap-8 items-center cursor-default">
+      {pages.map((pageItems, pageIndex) => (
+        <div key={pageIndex} className="bg-white text-gray-800 p-[40px] font-light font-sans relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', height: '1123px' }}>
+          {document.status === DocumentStatus.Paid && pageIndex === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div
+                className="text-8xl font-black text-green-500/20 border-8 border-green-500/20 rounded-full px-8 py-4 transform -rotate-12"
+              >
+                PAID
+              </div>
+            </div>
+          )}
+
+          {/* Header - First Page Only */}
+          {showHeader && pageIndex === 0 && (
+            <>
+              <header className="flex justify-between items-start mb-16">
+                <div>
+                  {companyInfo.logo && (
+                    <img
+                      src={companyInfo.logo}
+                      alt="Company Logo"
+                      className="h-10 w-auto mb-2 object-contain"
+                    />
+                  )}
+                  <h2 className="text-xl font-normal tracking-widest uppercase text-gray-800">
+                    {companyInfo.name}
+                  </h2>
+                </div>
+                <div className="text-right">
+                  <h1 className="text-4xl font-normal text-gray-400 uppercase tracking-wider">
+                    {document.type}
+                  </h1>
+                  <p className="text-gray-500 mt-1">{document.doc_number || '...'}</p>
+                </div>
+              </header>
+
+              <section className="grid grid-cols-3 gap-8 mb-16">
+                <div className="col-span-1">
+                  <h3 className="text-xs uppercase text-gray-500 tracking-wider mb-2">Billed To</h3>
+                  <p className="font-medium text-base text-gray-800">{document.customer?.name}</p>
+                  <p className="text-gray-600 text-sm">{document.customer?.address}</p>
+                </div>
+                <div className="col-span-1">
+                  <h3 className="text-xs uppercase text-gray-500 tracking-wider mb-2">Issue Date</h3>
+                  <p className="font-medium text-gray-800">{document.issue_date}</p>
+                </div>
+                <div className="col-span-1">
+                  <h3 className="text-xs uppercase text-gray-500 tracking-wider mb-2">{document.type === DocumentType.Quote ? 'Valid To' : 'Due Date'}</h3>
+                  <p className="font-medium text-gray-800">{document.due_date}</p>
+                </div>
+              </section>
+            </>
+          )}
+
+          {/* Spacer */}
+          {!showHeader || pageIndex > 0 ? <div className="h-8"></div> : null}
+
+          <section className="flex-grow">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-gray-300">
+                  <th className="p-2 pb-3 font-normal text-xs uppercase text-gray-500 tracking-wider">
+                    Description
+                  </th>
+                  <th className="p-2 pb-3 font-normal text-xs uppercase text-gray-500 tracking-wider text-center w-24">
+                    Qty
+                  </th>
+                  <th className="p-2 pb-3 font-normal text-xs uppercase text-gray-500 tracking-wider text-right w-32">
+                    Unit Price
+                  </th>
+                  <th className="p-2 pb-3 font-normal text-xs uppercase text-gray-500 tracking-wider text-right w-32">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((item) => (
+                  <tr key={item.id} className="border-b border-gray-200">
+                    <td className="p-2 py-3 text-gray-800 whitespace-pre-wrap">{item.description}</td>
+                    <td className="p-2 py-3 text-center text-gray-800">{item.quantity}</td>
+                    <td className="p-2 py-3 text-right text-gray-800">${item.price.toFixed(2)}</td>
+                    <td className="p-2 py-3 text-right text-gray-800">
+                      ${(item.quantity * item.price).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          {/* Footer - Last Page Only */}
+          {showFooter && pageIndex === pages.length - 1 && (
+            <footer className="mt-auto">
+              {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
+                <div className="my-6 text-center">
+                  <a
+                    href={document.stripe_payment_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
+                  >
+                    Pay Now
+                  </a>
+                </div>
+              )}
+
+              <section className="flex justify-end mt-8">
+                <div className="w-2/5 space-y-2 text-gray-600">
+                  <div className="flex justify-between">
+                    <p>Subtotal</p>
+                    <p>${document.subtotal.toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <p>Tax ({document.tax}%)</p>
+                    <p>${((document.subtotal * document.tax) / 100).toFixed(2)}</p>
+                  </div>
+                  <div className="flex justify-between font-medium text-xl text-black border-t-2 border-black mt-2 pt-2">
+                    <p>Total</p>
+                    <p>${document.total.toFixed(2)}</p>
+                  </div>
+                  {document.deposit_amount && document.deposit_amount > 0 && (
+                    <>
+                      <div className="flex justify-between text-gray-500 pt-2">
+                        <p>Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'})</p>
+                        <p>${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
+                      </div>
+                      <div className="flex justify-between font-medium text-lg text-black border-t border-gray-300 pt-2">
+                        <p>Balance</p>
+                        <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </section>
+              {document.notes && (
+                <div className="mt-10 pt-5 border-t border-gray-200">
+                  <p className="text-sm text-gray-500">{document.notes}</p>
+                </div>
+              )}
+              {document.terms && (
+                <div className="mt-6 pt-5 border-t border-gray-300">
+                  <h3 className="font-semibold text-gray-700">Terms & Conditions</h3>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{document.terms}</p>
+                </div>
+              )}
+            </footer>
+          )}
+
+          {/* Page Number */}
+          <div className="absolute bottom-4 right-8 text-xs text-gray-400">
+            Page {pageIndex + 1} of {pages.length}
           </div>
         </div>
-      )}
-      {showHeader && (
-        <>
-          <header className="flex justify-between items-start mb-16">
-            <div>
-              {companyInfo.logo && (
-                <img
-                  src={companyInfo.logo}
-                  alt="Company Logo"
-                  className="h-10 w-auto mb-2 object-contain"
-                />
-              )}
-              <h2 className="text-xl font-normal tracking-widest uppercase text-gray-800">
-                {companyInfo.name}
-              </h2>
-            </div>
-            <div className="text-right">
-              <h1 className="text-4xl font-normal text-gray-400 uppercase tracking-wider">
-                {document.type}
-              </h1>
-              {/* Fix: Changed docNumber to doc_number */}
-              <p className="text-gray-500 mt-1">{document.doc_number || '...'}</p>
-            </div>
-          </header>
-
-          <section className="grid grid-cols-3 gap-8 mb-16">
-            <div className="col-span-1">
-              <h3 className="text-xs uppercase text-gray-500 tracking-wider mb-2">Billed To</h3>
-              <p className="font-medium text-base text-gray-800">{document.customer?.name}</p>
-              <p className="text-gray-600 text-sm">{document.customer?.address}</p>
-            </div>
-            <div className="col-span-1">
-              <h3 className="text-xs uppercase text-gray-500 tracking-wider mb-2">Issue Date</h3>
-              {/* Fix: Changed issueDate to issue_date */}
-              <p className="font-medium text-gray-800">{document.issue_date}</p>
-            </div>
-            <div className="col-span-1">
-              <h3 className="text-xs uppercase text-gray-500 tracking-wider mb-2">{document.type === DocumentType.Quote ? 'Valid To' : 'Due Date'}</h3>
-              {/* Fix: Changed dueDate to due_date */}
-              <p className="font-medium text-gray-800">{document.due_date}</p>
-            </div>
-          </section>
-        </>
-      )}
-
-      <section className="flex-grow">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-300">
-              <th className="p-2 pb-3 font-normal text-xs uppercase text-gray-500 tracking-wider">
-                Description
-              </th>
-              <th className="p-2 pb-3 font-normal text-xs uppercase text-gray-500 tracking-wider text-center w-24">
-                Qty
-              </th>
-              <th className="p-2 pb-3 font-normal text-xs uppercase text-gray-500 tracking-wider text-right w-32">
-                Unit Price
-              </th>
-              <th className="p-2 pb-3 font-normal text-xs uppercase text-gray-500 tracking-wider text-right w-32">
-                Total
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => (
-              <tr key={item.id} className="border-b border-gray-200">
-                <td className="p-2 py-3 text-gray-800 whitespace-pre-wrap">{item.description}</td>
-                <td className="p-2 py-3 text-center text-gray-800">{item.quantity}</td>
-                <td className="p-2 py-3 text-right text-gray-800">${item.price.toFixed(2)}</td>
-                <td className="p-2 py-3 text-right text-gray-800">
-                  ${(item.quantity * item.price).toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      {showFooter && (
-        <footer className="mt-auto">
-          {document.type === DocumentType.Invoice && document.stripe_payment_link && document.status !== DocumentStatus.Paid && (
-            <div className="my-6 text-center">
-              <a
-                href={document.stripe_payment_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-8 py-3 text-lg font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-md"
-              >
-                Pay Now
-              </a>
-            </div>
-          )}
-
-          <section className="flex justify-end mt-8">
-            <div className="w-2/5 space-y-2 text-gray-600">
-              <div className="flex justify-between">
-                <p>Subtotal</p>
-                <p>${document.subtotal.toFixed(2)}</p>
-              </div>
-              <div className="flex justify-between">
-                <p>Tax ({document.tax}%)</p>
-                <p>${((document.subtotal * document.tax) / 100).toFixed(2)}</p>
-              </div>
-              <div className="flex justify-between font-medium text-xl text-black border-t-2 border-black mt-2 pt-2">
-                <p>Total</p>
-                <p>${document.total.toFixed(2)}</p>
-              </div>
-              {document.deposit_amount && document.deposit_amount > 0 && (
-                <>
-                  <div className="flex justify-between text-gray-500 pt-2">
-                    <p>Deposit ({document.deposit_type === 'percentage' ? `${document.deposit_amount}%` : 'Fixed'})</p>
-                    <p>${(document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount).toFixed(2)}</p>
-                  </div>
-                  <div className="flex justify-between font-medium text-lg text-black border-t border-gray-300 pt-2">
-                    <p>Balance</p>
-                    <p>${(document.total - (document.deposit_type === 'percentage' ? (document.total * (document.deposit_amount / 100)) : document.deposit_amount)).toFixed(2)}</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </section>
-          {document.notes && (
-            <div className="mt-10 pt-5 border-t border-gray-200">
-              <p className="text-sm text-gray-500">{document.notes}</p>
-            </div>
-          )}
-        </footer>
-      )}
+      ))}
     </div>
   );
 };
@@ -691,6 +977,35 @@ const TemplateBold: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Bold styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-sans font-extrabold uppercase tracking-widest text-slate-900',
+      subHeader: 'font-sans font-bold text-slate-500 uppercase',
+      sectionTitle: 'text-2xl font-extrabold uppercase text-slate-900 mb-6 border-b-4 border-slate-900 pb-2',
+      bodyText: 'font-sans font-medium text-slate-800 leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-slate-900 text-white font-sans font-black uppercase tracking-wider',
+      borderColor: 'border-slate-900',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-sans" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-white text-slate-900 font-sans" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white text-gray-900 font-sans relative shadow-xl mx-auto flex flex-col" style={{ width: '794px', minHeight: '1123px' }}>
       {document.status === DocumentStatus.Paid && (
@@ -837,6 +1152,35 @@ const TemplateRetro: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Retro styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-mono font-bold text-[#cb4b16] tracking-wider',
+      subHeader: 'font-mono text-[#b58900]',
+      sectionTitle: 'text-xl font-mono font-bold text-[#cb4b16] mb-4 border-b-2 border-dashed border-[#93a1a1] pb-2',
+      bodyText: 'font-mono text-[#586e75] leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-[#eee8d5] text-[#586e75] font-mono border-b-2 border-[#93a1a1]',
+      borderColor: 'border-[#93a1a1]',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fdf6e3' }}>
+          <p className="text-[#586e75]">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-mono" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-[#fdf6e3] text-[#586e75] font-mono" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-[#fdf6e3] text-[#586e75] p-[40px] font-mono relative shadow-xl mx-auto" style={{ width: '794px', minHeight: '1123px' }}>
       {document.status === DocumentStatus.Paid && (
@@ -966,6 +1310,35 @@ const TemplateCorporate: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Corporate styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-sans font-bold text-blue-800',
+      subHeader: 'font-sans text-slate-500',
+      sectionTitle: 'text-xl font-bold text-blue-800 mb-4 border-b-2 border-blue-200 pb-2',
+      bodyText: 'font-sans text-slate-700 leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-blue-50 text-blue-800 font-bold',
+      borderColor: 'border-blue-200',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-sans" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-white text-slate-800 font-sans" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white text-gray-800 p-10 font-sans h-full flex flex-col relative">
       {document.status === DocumentStatus.Paid && (
@@ -1093,6 +1466,35 @@ const TemplateElegant: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Elegant styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-serif text-amber-900 tracking-wide',
+      subHeader: 'font-serif text-amber-700',
+      sectionTitle: 'text-2xl font-serif text-amber-900 mb-4 border-b border-amber-200 pb-2 italic',
+      bodyText: 'font-serif text-slate-800 leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-amber-50 text-amber-900 font-serif',
+      borderColor: 'border-amber-200',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-serif" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-white text-slate-800 font-serif" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white text-gray-800 p-10 font-serif h-full flex flex-col relative">
       {document.status === DocumentStatus.Paid && (
@@ -1210,6 +1612,35 @@ const TemplateFriendly: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Friendly styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-sans font-bold text-green-600',
+      subHeader: 'font-sans text-green-500',
+      sectionTitle: 'text-xl font-bold text-green-700 mb-4 bg-green-50 p-2 rounded-lg',
+      bodyText: 'font-sans text-slate-700 leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-green-100 text-green-800 font-bold rounded-t-lg',
+      borderColor: 'border-green-200',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-sans" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-white text-slate-800 font-sans" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white text-gray-800 p-10 font-sans h-full flex flex-col overflow-hidden relative">
       <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-green-500/10 rounded-full"></div>
@@ -1332,6 +1763,35 @@ const TemplateTechnical: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Technical styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-mono text-sky-700',
+      subHeader: 'font-mono text-sky-500',
+      sectionTitle: 'text-lg font-mono font-bold text-sky-700 mb-4 border-b border-dashed border-sky-300 pb-1 uppercase',
+      bodyText: 'font-mono text-slate-600 text-sm leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-sky-50 text-sky-700 font-mono text-xs uppercase',
+      borderColor: 'border-sky-300',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-mono" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-white text-slate-700 font-mono" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white text-gray-800 p-10 font-mono h-full flex flex-col text-sm relative">
       {document.status === DocumentStatus.Paid && (
@@ -1441,6 +1901,35 @@ const TemplateEarthy: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Earthy styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-sans font-bold text-emerald-900',
+      subHeader: 'font-sans text-stone-500',
+      sectionTitle: 'text-xl font-bold text-emerald-800 mb-4 border-l-4 border-emerald-600 pl-4',
+      bodyText: 'font-sans text-stone-700 leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-emerald-100 text-emerald-900 font-bold',
+      borderColor: 'border-emerald-200',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ecfdf5' }}>
+          <p className="text-stone-500">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-sans" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-emerald-50 text-stone-800 font-sans" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-emerald-50 text-stone-800 p-10 font-sans h-full flex flex-col relative">
       {document.status === DocumentStatus.Paid && (
@@ -1559,6 +2048,35 @@ const TemplateSwiss: React.FC<ExtendedPreviewProps> = ({
   showFooter,
   profile,
 }) => {
+  // For proposals, use the PaginatedContent component with generated HTML and Swiss styling
+  if (document.type === DocumentType.Proposal || document.type === DocumentType.Contract || document.type === DocumentType.SLA) {
+    const styles: ProposalStyleOptions = {
+      header: 'font-sans font-bold text-black tracking-tight',
+      subHeader: 'font-sans text-gray-500',
+      sectionTitle: 'text-3xl font-bold text-black mb-6 leading-none',
+      bodyText: 'font-sans text-black leading-relaxed whitespace-pre-wrap',
+      tableHeader: 'bg-white text-black font-bold uppercase border-b-2 border-black',
+      borderColor: 'border-black',
+      isDark: false
+    };
+
+    const fullContent = generateProposalHTML(document, companyInfo, styles);
+
+    if (!fullContent.trim()) {
+      return (
+        <div className="mx-auto" style={{ width: '794px', height: '1123px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'white' }}>
+          <p className="text-slate-400">Start editing to see the preview...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mx-auto font-sans" style={{ width: '794px' }}>
+        <PaginatedContent content={fullContent} pageClassName="bg-white text-black font-sans" />
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white text-black p-10 font-sans h-full flex flex-col relative">
       {document.status === DocumentStatus.Paid && (

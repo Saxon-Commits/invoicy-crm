@@ -115,6 +115,8 @@ export interface Document {
   proposal_timeline?: string;
   proposal_investment?: string;
   proposal_next_steps?: string;
+  // Display Options
+  show_line_items_table?: boolean;
   created_at: string;
 }
 
