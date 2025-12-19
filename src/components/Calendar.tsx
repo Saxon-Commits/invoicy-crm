@@ -284,6 +284,20 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                             alert("Failed to update Google event");
                         }
                     } else {
+                        // Local event
+                        // Check if it has a linked Google ID and update that too
+                        if (event.google_event_id) {
+                            try {
+                                await updateGoogleEvent(event.google_event_id, {
+                                    title: event.title,
+                                    description: event.description,
+                                    startTime: event.start_time,
+                                    endTime: event.end_time
+                                });
+                            } catch (err) {
+                                console.error("Failed to update linked Google event", err);
+                            }
+                        }
                         updateEvent(event);
                     }
                 }}
@@ -773,7 +787,7 @@ const AddEventModal: React.FC<{
         let meetingLink = '';
         let googleId: string | undefined = undefined;
 
-        if (isConnected) {
+        if (isConnected && !eventToEdit) {
             try {
                 setIsCreatingMeeting(true);
                 // Automatically sync to Google Calendar if connected
