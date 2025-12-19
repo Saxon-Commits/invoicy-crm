@@ -84,10 +84,11 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
         // This prevents "double vision" when an event is synced both ways
         const uniqueGoogleEvents = googleEvents.filter(gEvent => {
             const isDuplicate = events.some(localEvent => {
-                if (localEvent.title !== gEvent.title) return false;
-
-                // Strict deduplication by ID if available
+                // 1. Precise ID match (Strongest signal) - Matches even if title changed locally
                 if (localEvent.google_event_id && localEvent.google_event_id === gEvent.id) return true;
+
+                // 2. Fuzzy match (Fallback)
+                if (localEvent.title !== gEvent.title) return false;
 
                 const t1 = new Date(localEvent.start_time).getTime();
                 const t2 = new Date(gEvent.start_time).getTime();
