@@ -35,7 +35,8 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
     const [googleEvents, setGoogleEvents] = useState<CalendarEvent[]>([]);
-    const { listEvents, isConnected } = useGoogleCalendar();
+    const [refreshKey, setRefreshKey] = useState(0);
+    const { listEvents, deleteEvent: deleteGoogleEvent, updateEvent: updateGoogleEvent, isConnected } = useGoogleCalendar();
 
     // Fetch Google Events when view or date changes
     useEffect(() => {
@@ -76,7 +77,7 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
         };
 
         fetchGoogleEvents();
-    }, [currentDate, view, isConnected, listEvents]);
+    }, [currentDate, view, isConnected, listEvents, refreshKey]);
 
     const allEvents = useMemo(() => [...events, ...googleEvents], [events, googleEvents]);
 
@@ -241,8 +242,33 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                 onClose={() => {
                     setIsEventModalOpen(false);
                 }}
-                onSave={addEvent}
-                onUpdate={updateEvent}
+                onSave={async (event) => {
+                    addEvent(event);
+                    // Refresh google if we just added one? 
+                    // AddEventModal already handles the createEvent call internally.
+                    // But we might want to refresh list to show it in red if it comes back?
+                    // Actually createEvent returns the object, maybe we should add it local?
+                    // For now, let's just trigger refresh after a short delay or rely on next fetch.
+                    setTimeout(() => setRefreshKey(prev => prev + 1), 1000);
+                }}
+                onUpdate={async (event) => {
+                    if (event.user_id === 'google') {
+                        try {
+                            await updateGoogleEvent(event.id, {
+                                title: event.title,
+                                description: event.description,
+                                startTime: event.start_time,
+                                endTime: event.end_time
+                            });
+                            setRefreshKey(prev => prev + 1);
+                        } catch (err) {
+                            console.error("Failed to update Google event", err);
+                            alert("Failed to update Google event");
+                        }
+                    } else {
+                        updateEvent(event);
+                    }
+                }}
                 initialDate={selectedDate}
                 eventToEdit={selectedEvent}
             />
@@ -251,9 +277,19 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                 event={selectedEvent}
                 onClose={() => setSelectedEvent(null)}
                 onEdit={() => setIsEventModalOpen(true)}
-                onDelete={(id) => {
+                onDelete={async (id) => {
                     if (confirm('Delete this event?')) {
-                        deleteEvent(id);
+                        if (selectedEvent?.user_id === 'google') {
+                            try {
+                                await deleteGoogleEvent(id);
+                                setRefreshKey(prev => prev + 1);
+                            } catch (err) {
+                                console.error("Failed to delete Google event", err);
+                                alert("Failed to delete Google event");
+                            }
+                        } else {
+                            deleteEvent(id);
+                        }
                         setSelectedEvent(null);
                     }
                 }}
@@ -411,28 +447,20 @@ const EventSidePanel: React.FC<{
             </div>
 
             <div className="p-4 border-t border-slate-100 dark:border-zinc-800 flex gap-3">
-                {!isGoogleEvent ? (
-                    <>
-                        <button
-                            onClick={onEdit}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 dark:border-zinc-700 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
-                        >
-                            <Edit2 size={16} />
-                            Edit
-                        </button>
-                        <button
-                            onClick={() => onDelete(event.id)}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium"
-                        >
-                            <Trash2 size={16} />
-                            Delete
-                        </button>
-                    </>
-                ) : (
-                    <div className="w-full text-center text-xs text-slate-400 py-2 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-100 dark:border-zinc-800">
-                        Read-only: Manage this event in Google Calendar
-                    </div>
-                )}
+                <button
+                    onClick={onEdit}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 dark:border-zinc-700 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
+                >
+                    <Edit2 size={16} />
+                    Edit
+                </button>
+                <button
+                    onClick={() => onDelete(event.id)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium"
+                >
+                    <Trash2 size={16} />
+                    Delete
+                </button>
             </div>
         </div>
     );

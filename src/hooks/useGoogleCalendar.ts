@@ -137,10 +137,79 @@ export const useGoogleCalendar = () => {
         }
     }, []);
 
+    const updateEvent = useCallback(async (eventId: string, eventData: { title: string, description?: string, startTime: string, endTime: string }) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session || !session.provider_token) {
+                throw new Error('No Google provider token found.');
+            }
+
+            const event = {
+                summary: eventData.title,
+                description: eventData.description,
+                start: { dateTime: eventData.startTime },
+                end: { dateTime: eventData.endTime },
+            };
+
+            const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${session.provider_token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(event),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update Google event');
+            }
+
+            return await response.json();
+        } catch (err: any) {
+            setError(err.message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const deleteEvent = useCallback(async (eventId: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session || !session.provider_token) {
+                throw new Error('No Google provider token found.');
+            }
+
+            const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${session.provider_token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete Google event');
+            }
+
+            return true;
+        } catch (err: any) {
+            setError(err.message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     return {
         connectGoogle,
         createEvent,
         listEvents,
+        updateEvent,
+        deleteEvent,
         isConnected,
         loading,
         error,
