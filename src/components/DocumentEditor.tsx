@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Customer, Document, DocumentItem, DocumentType, DocumentStatus, CompanyInfo, Recurrence, Expense, NewDocumentData } from '../types';
 import { TEMPLATES } from '../constants';
 import DocumentPreview from './DocumentPreview';
@@ -104,8 +104,28 @@ const UnbilledExpensesModal: React.FC<{
 
 const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument, updateDocument, deleteDocument, documentToEdit, companyInfo, expenses, isEmbedded, onExternalSave }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [mobileView, setMobileView] = useState<'editor' | 'preview'>('editor');
-    const [doc, setDoc] = useState<NewDocumentData | Document>(() => getInitialState(customers));
+    const [doc, setDoc] = useState<NewDocumentData | Document>(() => {
+        // If we have a document passed in props, use it
+        if (documentToEdit) return getInitialState(customers); // This will be overridden by the effect below anyway, but let's keep it safe
+
+        // Otherwise check URL params for type
+        const params = new URLSearchParams(location.search);
+        const typeParam = params.get('type');
+        const initialState = getInitialState(customers);
+
+        if (typeParam && Object.values(DocumentType).includes(typeParam as DocumentType)) {
+            return {
+                ...initialState,
+                type: typeParam as DocumentType,
+                // Set default toggle for proposals/contracts if needed
+                show_line_items_table: typeParam === 'Invoice' || typeParam === 'Quote'
+            };
+        }
+
+        return initialState;
+    });
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [showRecoveryModal, setShowRecoveryModal] = useState(false);
     const [recoveredDraft, setRecoveredDraft] = useState<NewDocumentData | null>(null);

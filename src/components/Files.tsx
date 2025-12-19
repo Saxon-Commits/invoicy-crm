@@ -188,7 +188,7 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
                     <button
                         onClick={() => {
                             onCreateNew();
-                            navigate('/proposal-editor?type=Proposal');
+                            navigate('/editor?type=Proposal');
                         }}
                         className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-cyan-500 dark:hover:border-cyan-500 hover:shadow-md transition-all group"
                     >
@@ -205,7 +205,7 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
                     <button
                         onClick={() => {
                             onCreateNew();
-                            navigate('/proposal-editor?type=Contract');
+                            navigate('/editor?type=Contract');
                         }}
                         className="flex flex-col items-center justify-center p-6 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:shadow-md transition-all group"
                     >
