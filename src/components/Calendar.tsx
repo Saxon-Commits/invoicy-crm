@@ -306,7 +306,21 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                                 alert("Failed to delete Google event");
                             }
                         } else {
+                            // Local event
+                            // If it has a linked google_event_id, we must delete that too!
+                            if (selectedEvent?.google_event_id) {
+                                try {
+                                    await deleteGoogleEvent(selectedEvent.google_event_id);
+                                } catch (err) {
+                                    console.error("Failed to delete linked Google event", err);
+                                    // Continue to delete local even if remote fails? 
+                                    // Probably yes, or alert user. 
+                                    // For now, silent log + continue is standard for "best effort" sync.
+                                }
+                            }
                             deleteEvent(id);
+                            // Refresh just in case to re-sync lists
+                            setTimeout(() => setRefreshKey(prev => prev + 1), 500);
                         }
                         setSelectedEvent(null);
                     }
