@@ -196,13 +196,19 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateDocument = async (doc: Document) => {
+  const handleUpdateDocument = async (doc: Document, silent?: boolean) => {
     try {
       const updatedDoc = await updateDocument(doc);
-      setToast({ message: 'Document updated successfully.', type: 'success' });
+      if (!silent) {
+        setToast({ message: 'Document updated successfully.', type: 'success' });
+      }
       return updatedDoc;
     } catch (e: any) {
-      setToast({ message: `Error updating document: ${e.message}`, type: 'error' });
+      if (!silent) {
+        setToast({ message: `Error updating document: ${e.message}`, type: 'error' });
+      } else {
+        console.error('Auto-save error:', e);
+      }
       return null;
     }
   };

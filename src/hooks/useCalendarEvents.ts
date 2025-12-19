@@ -28,16 +28,24 @@ export const useCalendarEvents = () => {
     }, [session]);
 
     const addEvent = async (event: Omit<CalendarEvent, 'id' | 'created_at' | 'user_id'>) => {
-        if (!session) return;
+        if (!session) {
+            console.error("No session found in addEvent");
+            return;
+        }
         try {
+            console.log("Attempting to add event:", event);
             const { data, error } = await supabase
                 .from('calendar_events')
                 .insert({ ...event, user_id: session.user.id })
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (error) {
+                console.error("Supabase insert error:", error);
+                throw error;
+            }
             if (data) {
+                console.log("Event added successfully:", data);
                 setEvents((prev) =>
                     [...prev, data].sort(
                         (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
@@ -46,6 +54,7 @@ export const useCalendarEvents = () => {
             }
             return data;
         } catch (err: any) {
+            console.error("Catch block error in addEvent:", err);
             setError(err.message);
             throw err;
         }

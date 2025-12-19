@@ -11,7 +11,7 @@ import ScaledPreviewWrapper from './ScaledPreviewWrapper';
 interface DocumentEditorProps {
     customers: Customer[];
     addDocument: (doc: NewDocumentData) => void;
-    updateDocument: (doc: Document) => void;
+    updateDocument: (doc: Document, silent?: boolean) => void;
     deleteDocument: (docId: string) => void;
     documentToEdit: Document | null;
     companyInfo: CompanyInfo;
@@ -127,8 +127,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
         return initialState;
     });
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [showRecoveryModal, setShowRecoveryModal] = useState(false);
-    const [recoveredDraft, setRecoveredDraft] = useState<NewDocumentData | null>(null);
+    // Removed showRecoveryModal state
+    // const [recoveredDraft, setRecoveredDraft] = useState<NewDocumentData | null>(null);
     const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
     const isEditMode = useMemo(() => documentToEdit !== null && 'id' in doc, [documentToEdit, doc]);
@@ -161,14 +161,6 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
 
     // Effect for initializing the form state
     useEffect(() => {
-        const loadDraft = () => {
-            const savedDraft = loadAutoSavedDraft<NewDocumentData>(AUTO_SAVE_KEY);
-            if (savedDraft) {
-                setRecoveredDraft(savedDraft);
-                setShowRecoveryModal(true);
-            }
-        };
-
         if (documentToEdit) {
             // If editing an existing document, load it
             // Ensure we merge with default structure to avoid missing fields
@@ -178,10 +170,25 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
                 items: documentToEdit.items.map(i => ({ ...i, id: i.id || `item-${Date.now()}-${Math.random()}` }))
             } as NewDocumentData | Document);
         } else {
-            // If creating new, check for draft
-            loadDraft();
+            // If creating new, check for draft silently
+            const savedDraft = loadAutoSavedDraft<NewDocumentData>(AUTO_SAVE_KEY);
+            if (savedDraft) {
+                setDoc(savedDraft);
+            }
         }
     }, [documentToEdit, customers]);
+
+    // Debounced Auto-Save for Existing Documents
+    useEffect(() => {
+        if (!isEditMode || !('id' in doc)) return;
+
+        const timer = setTimeout(() => {
+            // Silent update
+            updateDocument(doc as Document, true);
+        }, 3000); // 3 seconds debounce
+
+        return () => clearTimeout(timer);
+    }, [doc, isEditMode, updateDocument]);
 
     const unbilledExpenses = useMemo(() => {
         if (!doc.customer) return [];
@@ -311,20 +318,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
         }
     };
 
-    const handleRecoverDraft = () => {
-        if (recoveredDraft) {
-            setDoc(recoveredDraft);
-        }
-        setShowRecoveryModal(false);
-        setRecoveredDraft(null);
-    };
-
-    const handleDiscardDraft = () => {
-        clearAutoSavedDraft(AUTO_SAVE_KEY);
-        setDoc(getInitialState(customers));
-        setShowRecoveryModal(false);
-        setRecoveredDraft(null);
-    };
+    // Removed handleRecoverDraft and handleDiscardDraft
 
     const handleNewDocument = () => {
         if (!currentDocument.id || currentDocument.id === 'preview-id') {
@@ -731,24 +725,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
                 expenses={unbilledExpenses}
             />
 
-            {showRecoveryModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true">
-                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
-                        <h2 id="modal-title" className="text-xl font-bold my-3 text-slate-800 dark:text-zinc-50">Unsaved Work Found</h2>
-                        <p className="text-sm text-slate-500 dark:text-zinc-400">
-                            You have an unsaved draft. Would you like to recover it?
-                        </p>
-                        <div className="flex justify-center space-x-4 mt-6">
-                            <button onClick={handleDiscardDraft} className="px-6 py-2 rounded-lg bg-slate-200 dark:bg-zinc-700 hover:bg-slate-300 dark:hover:bg-zinc-600 transition font-semibold">
-                                Discard
-                            </button>
-                            <button onClick={handleRecoverDraft} className="px-6 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition font-semibold">
-                                Recover
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+
 
             {isDeleteModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" aria-labelledby="modal-title" role="dialog" aria-modal="true">

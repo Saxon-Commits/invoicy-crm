@@ -155,6 +155,7 @@ export interface CalendarEvent {
   color: string;
   meeting_link?: string;
   created_at: string;
+  description?: string;
 }
 
 // FIX: Added missing Task interface export.
@@ -165,6 +166,7 @@ export interface Task {
   completed: boolean;
   due_date?: string; // ISO string
   created_at: string;
+  status?: 'todo' | 'in-progress' | 'done' | 'scheduled';
 }
 
 export interface EmailTemplate {

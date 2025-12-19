@@ -672,13 +672,13 @@ const Settings: React.FC<SettingsProps> = ({
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">Sync events and create Google Meet links automatically.</p>
                 <button
                   onClick={connectGoogle}
-                  disabled={googleLoading || isConnected}
+                  disabled={googleLoading}
                   className={`w-full py-1.5 text-xs font-semibold rounded-md border transition-colors ${isConnected
-                    ? 'bg-green-50 border-green-200 text-green-700 cursor-default'
+                    ? 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700'
                     : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700'
                     }`}
                 >
-                  {googleLoading ? 'Connecting...' : isConnected ? 'Connected' : 'Connect Calendar'}
+                  {googleLoading ? 'Connecting...' : isConnected ? 'Reconnect Calendar' : 'Connect Calendar'}
                 </button>
                 {googleError && <p className="text-red-500 text-[10px] mt-2">{googleError}</p>}
               </div>

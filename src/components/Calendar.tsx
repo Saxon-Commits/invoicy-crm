@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CalendarEvent, Task, Document } from '../types';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay, addMonths, subMonths, addWeeks, subWeeks, isToday, getHours, setHours, setMinutes } from 'date-fns';
-import { ChevronLeft, ChevronRight, MoreHorizontal, Clock, Plus, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MoreHorizontal, Clock, Plus, GripVertical, ChevronDown, Calendar as CalendarIcon, Video } from 'lucide-react';
 import { FEATURES } from '../config/features';
 
 type View = 'month' | 'week' | 'day' | 'agenda';
@@ -23,6 +23,8 @@ interface CalendarProps {
 const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocument, addEvent, updateEvent, deleteEvent, addTask, updateTask, deleteTask }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [view, setView] = useState<View>('month');
+    const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
     // Drag and Drop State
     const [draggedTask, setDraggedTask] = useState<Task | null>(null);
@@ -123,12 +125,25 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                             <button onClick={handlePrev} className="p-1.5 rounded hover:bg-white dark:hover:bg-zinc-700 shadow-sm transition-all"><ChevronLeft size={18} /></button>
                             <button onClick={handleNext} className="p-1.5 rounded hover:bg-white dark:hover:bg-zinc-700 shadow-sm transition-all"><ChevronRight size={18} /></button>
                         </div>
-                        <button onClick={handleToday} className="px-3 py-1.5 text-sm font-medium rounded-md border border-slate-300 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors">Today</button>
+                        <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 rounded-lg p-1">
+                            <button onClick={handleToday} className="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-zinc-700 hover:shadow-sm text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 transition-all">Today</button>
+                            <div className="w-px h-4 bg-slate-300 dark:bg-zinc-700 mx-1"></div>
+                            {(['month', 'week'] as View[]).map(v => (
+                                <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm font-semibold rounded-md capitalize transition-colors ${view === v ? 'bg-white dark:bg-zinc-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>{v}</button>
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
-                        {(['month', 'week'] as View[]).map(v => (
-                            <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm font-semibold rounded-md capitalize transition-colors ${view === v ? 'bg-white dark:bg-zinc-700 shadow-sm text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>{v}</button>
-                        ))}
+                    <div>
+                        <button
+                            onClick={() => {
+                                setSelectedDate(new Date());
+                                setIsEventModalOpen(true);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                        >
+                            <Plus size={16} />
+                            Add Event
+                        </button>
                     </div>
                 </header>
 
@@ -140,6 +155,10 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                             tasks={tasks}
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
+                            onDayClick={(date: Date) => {
+                                setSelectedDate(date);
+                                setIsEventModalOpen(true);
+                            }}
                         />
                     )}
                     {view === 'week' && (
@@ -149,17 +168,107 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                             tasks={tasks}
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
+                            onDayClick={(date: Date) => {
+                                setSelectedDate(date);
+                                setIsEventModalOpen(true);
+                            }}
                         />
                     )}
                 </div>
             </div>
-        </div>
+
+            <AddEventModal
+                isOpen={isEventModalOpen}
+                onClose={() => setIsEventModalOpen(false)}
+                onSave={addEvent}
+                initialDate={selectedDate}
+            />
+        </div >
     );
 };
 
 // Sub-components
 
-const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOver }) => {
+const CustomSelect: React.FC<{
+    value: string;
+    onChange: (value: string) => void;
+    options: { value: string; label: string }[];
+    className?: string;
+    placeholder?: string;
+}> = ({ value, onChange, options, className = '', placeholder }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedLabel = options.find(o => o.value === value)?.label || value;
+
+    // Close on click outside (simplified)
+    React.useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if ((e.target as HTMLElement).closest('.custom-select-container') === null) {
+                setIsOpen(false);
+            }
+        };
+        if (isOpen) {
+            document.addEventListener('click', handleClickOutside);
+        }
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, [isOpen]);
+
+    return (
+        <div className={`relative custom-select-container ${className}`}>
+            <button
+                type="button"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setIsOpen(!isOpen);
+                }}
+                className="w-full flex items-center justify-between p-2 border border-slate-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-slate-900 dark:text-white text-sm hover:border-blue-400 focus:ring-2 focus:ring-blue-500 transition-all"
+            >
+                <span className="truncate">{selectedLabel || placeholder}</span>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+                <div className="absolute top-full left-0 w-full mt-1 max-h-48 overflow-y-auto bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md shadow-lg z-50">
+                    {options.map(option => (
+                        <div
+                            key={option.value}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onChange(option.value);
+                                setIsOpen(false);
+                            }}
+                            className={`p-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-700/50 text-slate-700 dark:text-slate-200 ${value === option.value ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium' : ''}`}
+                        >
+                            {option.label}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const DateSelector: React.FC<{
+    value: Date;
+    onChange: (date: Date) => void;
+}> = ({ value, onChange }) => {
+    return (
+        <div className="relative group">
+            <input
+                type="date"
+                required
+                value={format(value, 'yyyy-MM-dd')}
+                onChange={(e) => e.target.valueAsDate && onChange(e.target.valueAsDate)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+            />
+            <div className="w-full flex items-center justify-between p-2 border border-slate-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-slate-900 dark:text-white text-sm group-hover:border-blue-400 group-focus-within:ring-2 group-focus-within:ring-blue-500 transition-all">
+                <span className="font-medium">{format(value, 'dd - MM - yy')}</span>
+                <CalendarIcon size={14} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
+            </div>
+        </div>
+    );
+};
+
+const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOver, onDayClick }) => {
     const days = useMemo(() => {
         const start = startOfWeek(startOfMonth(currentDate));
         const end = endOfWeek(endOfMonth(currentDate));
@@ -188,6 +297,7 @@ const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOv
                             key={day.toISOString()}
                             onDragOver={onDragOver}
                             onDrop={(e) => onDrop(e, day)}
+                            onClick={() => onDayClick && onDayClick(day)}
                             className={`
                 min-h-[100px] border-b border-r border-slate-200 dark:border-zinc-800 p-2 transition-colors relative
                 ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-zinc-900/50 text-slate-400' : 'bg-white dark:bg-zinc-900'}
@@ -218,7 +328,7 @@ const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOv
     );
 };
 
-const WeekView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOver }) => {
+const WeekView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOver, onDayClick }) => {
     const days = useMemo(() => {
         const start = startOfWeek(currentDate);
         const end = endOfWeek(currentDate);
@@ -257,6 +367,7 @@ const WeekView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOve
                                     key={day.toISOString()}
                                     onDragOver={onDragOver}
                                     onDrop={(e) => onDrop(e, day, hour)}
+                                    onClick={() => onDayClick && onDayClick(setHours(day, hour))}
                                     className="flex-1 border-r border-slate-100 dark:border-zinc-800/50 relative hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors p-1"
                                 >
                                     {cellEvents.map((e: any) => (
@@ -274,6 +385,269 @@ const WeekView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOve
                         })}
                     </div>
                 ))}
+            </div>
+        </div>
+    );
+};
+
+const AddEventModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (event: Omit<CalendarEvent, 'id' | 'created_at' | 'user_id'>) => void;
+    initialDate: Date;
+}> = ({ isOpen, onClose, onSave, initialDate }) => {
+    const [title, setTitle] = useState('');
+    const [color, setColor] = useState('blue');
+    const [addMeetLink, setAddMeetLink] = useState(false);
+
+    // Google Calendar Integration
+    const { createMeeting, isConnected } = useGoogleCalendar();
+    const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+
+    // Date Selection
+    const [startDate, setStartDate] = useState(new Date());
+    const [endDate, setEndDate] = useState(new Date());
+
+    // Time Selection Separate States
+    const [startHour, setStartHour] = useState('09');
+    const [startMinute, setStartMinute] = useState('00');
+    const [startAmPm, setStartAmPm] = useState('AM');
+
+    const [endHour, setEndHour] = useState('10');
+    const [endMinute, setEndMinute] = useState('00');
+    const [endAmPm, setEndAmPm] = useState('AM');
+
+    // Generate Hour/Minute Options
+
+    // Generate Hour/Minute Options
+    const hours = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+    const minutes = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
+    useMemo(() => {
+        if (isOpen) {
+            setStartDate(initialDate);
+            setEndDate(initialDate);
+
+            // Default time logic: Next full hour
+            const now = new Date();
+            let nextHour = now.getHours() + 1;
+
+            const formatTimeParts = (h: number) => {
+                const amPm = h >= 12 ? 'PM' : 'AM';
+                let h12 = h % 12;
+                if (h12 === 0) h12 = 12;
+                return {
+                    hour: h12.toString().padStart(2, '0'),
+                    minute: '00',
+                    amPm
+                };
+            };
+
+            const start = formatTimeParts(nextHour);
+            const end = formatTimeParts(nextHour + 1);
+
+            setStartHour(start.hour);
+            setStartMinute(start.minute);
+            setStartAmPm(start.amPm);
+
+            setEndHour(end.hour);
+            setEndMinute(end.minute);
+            setEndAmPm(end.amPm);
+
+            setEndAmPm(end.amPm);
+
+            setTitle('');
+            setAddMeetLink(false);
+        }
+    }, [isOpen, initialDate]);
+
+    if (!isOpen) return null;
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        // Prevent double submit if already creating
+        if (isCreatingMeeting) return;
+
+        const get24HourTime = (hStr: string, mStr: string, amPm: string) => {
+            let h = parseInt(hStr);
+            const m = parseInt(mStr);
+
+            if (amPm === 'PM' && h !== 12) h += 12;
+            if (amPm === 'AM' && h === 12) h = 0;
+            return { h, m };
+        };
+
+        const start = get24HourTime(startHour, startMinute, startAmPm);
+        const end = get24HourTime(endHour, endMinute, endAmPm);
+
+        const s = new Date(startDate);
+        s.setHours(start.h, start.m, 0, 0);
+
+        const eDate = new Date(endDate);
+        eDate.setHours(end.h, end.m, 0, 0);
+
+        let meetingLink = '';
+
+        if (addMeetLink && isConnected) {
+            try {
+                setIsCreatingMeeting(true);
+                meetingLink = await createMeeting(title, s.toISOString(), eDate.toISOString());
+            } catch (err) {
+                console.error("Failed to create meeting:", err);
+                alert("Failed to create Google Meet link. Event will be saved without it.");
+            } finally {
+                setIsCreatingMeeting(false);
+            }
+        }
+
+        onSave({
+            title,
+            start_time: s.toISOString(),
+            end_time: eDate.toISOString(),
+            color,
+            description: '',
+            meeting_link: meetingLink || undefined,
+        });
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-zinc-100 mb-4">Add Event</h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Event Title</label>
+                        <input
+                            type="text"
+                            required
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            className="w-full p-2 border border-slate-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-slate-900 dark:text-white"
+                            placeholder="Client Meeting"
+                            autoFocus
+                        />
+                    </div>
+
+                    {/* Start Date & Time */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Start Date</label>
+                            <DateSelector
+                                value={startDate}
+                                onChange={setStartDate}
+                            />
+                        </div>
+                        <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Start Time</label>
+                            <div className="flex gap-2">
+                                <CustomSelect
+                                    value={startHour}
+                                    onChange={setStartHour}
+                                    options={hours.map(h => ({ value: h, label: h }))}
+                                    className="flex-1"
+                                />
+                                <span className="text-slate-400 self-center font-bold">:</span>
+                                <CustomSelect
+                                    value={startMinute}
+                                    onChange={setStartMinute}
+                                    options={minutes.map(m => ({ value: m, label: m }))}
+                                    className="flex-1"
+                                />
+                                <CustomSelect
+                                    value={startAmPm}
+                                    onChange={setStartAmPm}
+                                    options={[{ value: 'AM', label: 'AM' }, { value: 'PM', label: 'PM' }]}
+                                    className="w-20"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* End Date & Time */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">End Date</label>
+                            <DateSelector
+                                value={endDate}
+                                onChange={setEndDate}
+                            />
+                        </div>
+                        <div className="col-span-2 sm:col-span-1">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">End Time</label>
+                            <div className="flex gap-2">
+                                <CustomSelect
+                                    value={endHour}
+                                    onChange={setEndHour}
+                                    options={hours.map(h => ({ value: h, label: h }))}
+                                    className="flex-1"
+                                />
+                                <span className="text-slate-400 self-center font-bold">:</span>
+                                <CustomSelect
+                                    value={endMinute}
+                                    onChange={setEndMinute}
+                                    options={minutes.map(m => ({ value: m, label: m }))}
+                                    className="flex-1"
+                                />
+                                <CustomSelect
+                                    value={endAmPm}
+                                    onChange={setEndAmPm}
+                                    options={[{ value: 'AM', label: 'AM' }, { value: 'PM', label: 'PM' }]}
+                                    className="w-20"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">Options</label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="google-meet"
+                                checked={addMeetLink}
+                                onChange={e => setAddMeetLink(e.target.checked)}
+                                disabled={!isConnected}
+                                className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 disabled:opacity-50"
+                            />
+                            <label htmlFor="google-meet" className={`flex items-center gap-2 text-sm ${!isConnected ? 'text-slate-400' : 'text-slate-700 dark:text-zinc-300'}`}>
+                                <Video size={16} />
+                                Add Google Meet Conferencing
+                            </label>
+                            {!isConnected && (
+                                <span className="text-xs text-amber-500 ml-2">(Go to Settings to connect Google Calendar)</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Color</label>
+                        <div className="flex gap-2">
+                            {['blue', 'green', 'red', 'purple', 'amber'].map(c => (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => setColor(c)}
+                                    className={`w-8 h-8 rounded-full border-2 transition-all ${color === c ? 'border-slate-600 dark:border-zinc-300 scale-110' : 'border-transparent'}`}
+                                    style={{ backgroundColor: `var(--color-${c}-500, ${c})` }}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
+                        <button
+                            type="submit"
+                            disabled={isCreatingMeeting}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {isCreatingMeeting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                            {isCreatingMeeting ? 'Creating...' : 'Save Event'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );
