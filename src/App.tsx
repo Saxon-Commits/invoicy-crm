@@ -24,6 +24,7 @@ import CustomerDetail from './components/CustomerDetail';
 import Files from './components/Files';
 // import { DocumentsPage } from './pages/DocumentsPage';
 import CustomerPortal from './pages/CustomerPortal';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import AuthPage from './components/Auth';
 import { useAuth } from './AuthContext';
 
@@ -247,6 +248,7 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/p/:id" element={<CustomerPortal />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="*" element={<Navigate to="/auth" />} />
       </Routes>
     );
