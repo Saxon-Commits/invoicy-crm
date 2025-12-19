@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CalendarEvent, Task, Document } from '../types';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay, addMonths, subMonths, addWeeks, subWeeks, isToday, getHours, setHours, setMinutes } from 'date-fns';
-import { ChevronLeft, ChevronRight, MoreHorizontal, Clock, Plus, GripVertical, ChevronDown, Calendar as CalendarIcon, Video } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MoreHorizontal, Clock, Plus, GripVertical, ChevronDown, Calendar as CalendarIcon, Video, X, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import { FEATURES } from '../config/features';
 
 type View = 'month' | 'week' | 'day' | 'agenda';
@@ -25,6 +25,7 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
     const [view, setView] = useState<View>('month');
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
     // Drag and Drop State
     const [draggedTask, setDraggedTask] = useState<Task | null>(null);
@@ -136,6 +137,7 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                     <div>
                         <button
                             onClick={() => {
+                                setSelectedEvent(null);
                                 setSelectedDate(new Date());
                                 setIsEventModalOpen(true);
                             }}
@@ -156,9 +158,11 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
                             onDayClick={(date: Date) => {
+                                setSelectedEvent(null);
                                 setSelectedDate(date);
                                 setIsEventModalOpen(true);
                             }}
+                            onEventClick={(event: CalendarEvent) => setSelectedEvent(event)}
                         />
                     )}
                     {view === 'week' && (
@@ -169,9 +173,11 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
                             onDayClick={(date: Date) => {
+                                setSelectedEvent(null);
                                 setSelectedDate(date);
                                 setIsEventModalOpen(true);
                             }}
+                            onEventClick={(event: CalendarEvent) => setSelectedEvent(event)}
                         />
                     )}
                 </div>
@@ -179,9 +185,25 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
 
             <AddEventModal
                 isOpen={isEventModalOpen}
-                onClose={() => setIsEventModalOpen(false)}
+                onClose={() => {
+                    setIsEventModalOpen(false);
+                }}
                 onSave={addEvent}
+                onUpdate={updateEvent}
                 initialDate={selectedDate}
+                eventToEdit={selectedEvent}
+            />
+
+            <EventSidePanel
+                event={selectedEvent}
+                onClose={() => setSelectedEvent(null)}
+                onEdit={() => setIsEventModalOpen(true)}
+                onDelete={(id) => {
+                    if (confirm('Delete this event?')) {
+                        deleteEvent(id);
+                        setSelectedEvent(null);
+                    }
+                }}
             />
         </div >
     );
@@ -268,7 +290,87 @@ const DateSelector: React.FC<{
     );
 };
 
-const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOver, onDayClick }) => {
+const EventSidePanel: React.FC<{
+    event: CalendarEvent | null;
+    onClose: () => void;
+    onEdit: () => void;
+    onDelete: (id: string) => void;
+}> = ({ event, onClose, onEdit, onDelete }) => {
+    if (!event) return null;
+
+    return (
+        <div className="absolute top-0 right-0 h-full w-80 bg-white dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800 shadow-xl z-20 flex flex-col transform transition-transform duration-300">
+            <div className="p-4 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-start">
+                <div>
+                    <span className={`inline-block w-3 h-3 rounded-full mb-2 bg-${event.color}-500`}></span>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{event.title}</h2>
+                </div>
+                <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
+                    <X size={20} />
+                </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                <div>
+                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Time</label>
+                    <div className="text-sm text-slate-700 dark:text-zinc-300 flex items-center gap-2">
+                        <Clock size={16} className="text-slate-400" />
+                        <div>
+                            <p>{format(new Date(event.start_time), 'EEEE, d MMMM')}</p>
+                            <p className="text-slate-500">
+                                {format(new Date(event.start_time), 'h:mm a')} - {format(new Date(event.end_time), 'h:mm a')}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {event.meeting_link && (
+                    <div>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Google Meet</label>
+                        <a
+                            href={event.meeting_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg text-sm font-medium hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                        >
+                            <Video size={16} />
+                            Join Meeting
+                            <ExternalLink size={14} className="ml-1 opacity-70" />
+                        </a>
+                    </div>
+                )}
+
+                {event.description ? (
+                    <div>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1 block">Description</label>
+                        <p className="text-sm text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">{event.description}</p>
+                    </div>
+                ) : (
+                    <div className="text-sm text-slate-400 italic">No description provided</div>
+                )}
+            </div>
+
+            <div className="p-4 border-t border-slate-100 dark:border-zinc-800 flex gap-3">
+                <button
+                    onClick={onEdit}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 dark:border-zinc-700 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
+                >
+                    <Edit2 size={16} />
+                    Edit
+                </button>
+                <button
+                    onClick={() => onDelete(event.id)}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium"
+                >
+                    <Trash2 size={16} />
+                    Delete
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOver, onDayClick, onEventClick }) => {
     const days = useMemo(() => {
         const start = startOfWeek(startOfMonth(currentDate));
         const end = endOfWeek(endOfMonth(currentDate));
@@ -309,7 +411,14 @@ const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOv
                             </div>
                             <div className="space-y-1">
                                 {dayEvents.map((e: any) => (
-                                    <div key={e.id} className="text-xs p-1 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 truncate">
+                                    <div
+                                        key={e.id}
+                                        onClick={(ev) => {
+                                            ev.stopPropagation();
+                                            onEventClick && onEventClick(e);
+                                        }}
+                                        className="text-xs p-1 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 truncate cursor-pointer hover:opacity-80 transition-opacity"
+                                    >
                                         {e.title}
                                     </div>
                                 ))}
@@ -328,7 +437,7 @@ const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOv
     );
 };
 
-const WeekView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOver, onDayClick }) => {
+const WeekView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOver, onDayClick, onEventClick }) => {
     const days = useMemo(() => {
         const start = startOfWeek(currentDate);
         const end = endOfWeek(currentDate);
@@ -371,7 +480,14 @@ const WeekView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOve
                                     className="flex-1 border-r border-slate-100 dark:border-zinc-800/50 relative hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors p-1"
                                 >
                                     {cellEvents.map((e: any) => (
-                                        <div key={e.id} className="text-[10px] p-1 rounded bg-blue-100/80 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100 mb-1 leading-tight border border-blue-200 dark:border-blue-800">
+                                        <div
+                                            key={e.id}
+                                            onClick={(ev) => {
+                                                ev.stopPropagation();
+                                                onEventClick && onEventClick(e);
+                                            }}
+                                            className="text-[10px] p-1 rounded bg-blue-100/80 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100 mb-1 leading-tight border border-blue-200 dark:border-blue-800 cursor-pointer hover:opacity-80 transition-opacity"
+                                        >
                                             {e.title}
                                         </div>
                                     ))}
@@ -394,8 +510,10 @@ const AddEventModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     onSave: (event: Omit<CalendarEvent, 'id' | 'created_at' | 'user_id'>) => void;
+    onUpdate?: (event: CalendarEvent) => void;
     initialDate: Date;
-}> = ({ isOpen, onClose, onSave, initialDate }) => {
+    eventToEdit?: CalendarEvent | null;
+}> = ({ isOpen, onClose, onSave, onUpdate, initialDate, eventToEdit }) => {
     const [title, setTitle] = useState('');
     const [color, setColor] = useState('blue');
     const [addMeetLink, setAddMeetLink] = useState(false);
@@ -425,41 +543,75 @@ const AddEventModal: React.FC<{
 
     useMemo(() => {
         if (isOpen) {
-            setStartDate(initialDate);
-            setEndDate(initialDate);
+            if (eventToEdit) {
+                setTitle(eventToEdit.title);
+                setColor(eventToEdit.color || 'blue');
+                setAddMeetLink(!!eventToEdit.meeting_link);
 
-            // Default time logic: Next full hour
-            const now = new Date();
-            let nextHour = now.getHours() + 1;
+                const s = new Date(eventToEdit.start_time);
+                const e = new Date(eventToEdit.end_time);
 
-            const formatTimeParts = (h: number) => {
-                const amPm = h >= 12 ? 'PM' : 'AM';
-                let h12 = h % 12;
-                if (h12 === 0) h12 = 12;
-                return {
-                    hour: h12.toString().padStart(2, '0'),
-                    minute: '00',
-                    amPm
+                setStartDate(s);
+                setEndDate(e);
+
+                const formatTimeParts = (date: Date) => {
+                    let h = date.getHours();
+                    const amPm = h >= 12 ? 'PM' : 'AM';
+                    let h12 = h % 12;
+                    if (h12 === 0) h12 = 12;
+                    return {
+                        hour: h12.toString().padStart(2, '0'),
+                        minute: date.getMinutes().toString().padStart(2, '0'),
+                        amPm
+                    };
                 };
-            };
 
-            const start = formatTimeParts(nextHour);
-            const end = formatTimeParts(nextHour + 1);
+                const start = formatTimeParts(s);
+                const end = formatTimeParts(e);
 
-            setStartHour(start.hour);
-            setStartMinute(start.minute);
-            setStartAmPm(start.amPm);
+                setStartHour(start.hour);
+                setStartMinute(start.minute);
+                setStartAmPm(start.amPm);
 
-            setEndHour(end.hour);
-            setEndMinute(end.minute);
-            setEndAmPm(end.amPm);
+                setEndHour(end.hour);
+                setEndMinute(end.minute);
+                setEndAmPm(end.amPm);
 
-            setEndAmPm(end.amPm);
+            } else {
+                setStartDate(initialDate);
+                setEndDate(initialDate);
+                setTitle('');
+                setColor('blue');
+                setAddMeetLink(false);
 
-            setTitle('');
-            setAddMeetLink(false);
+                // Default time logic: Next full hour
+                const now = new Date();
+                let nextHour = now.getHours() + 1;
+
+                const formatTimeParts = (h: number) => {
+                    const amPm = h >= 12 ? 'PM' : 'AM';
+                    let h12 = h % 12;
+                    if (h12 === 0) h12 = 12;
+                    return {
+                        hour: h12.toString().padStart(2, '0'),
+                        minute: '00',
+                        amPm
+                    };
+                };
+
+                const start = formatTimeParts(nextHour);
+                const end = formatTimeParts(nextHour + 1);
+
+                setStartHour(start.hour);
+                setStartMinute(start.minute);
+                setStartAmPm(start.amPm);
+
+                setEndHour(end.hour);
+                setEndMinute(end.minute);
+                setEndAmPm(end.amPm);
+            }
         }
-    }, [isOpen, initialDate]);
+    }, [isOpen, initialDate, eventToEdit]);
 
     if (!isOpen) return null;
 
@@ -501,21 +653,34 @@ const AddEventModal: React.FC<{
             }
         }
 
-        onSave({
-            title,
-            start_time: s.toISOString(),
-            end_time: eDate.toISOString(),
-            color,
-            description: '',
-            meeting_link: meetingLink || undefined,
-        });
+        if (eventToEdit && onUpdate) {
+            onUpdate({
+                ...eventToEdit,
+                title,
+                start_time: s.toISOString(),
+                end_time: eDate.toISOString(),
+                color,
+                meeting_link: meetingLink || eventToEdit.meeting_link, // Keep existing if not new
+            });
+        } else {
+            onSave({
+                title,
+                start_time: s.toISOString(),
+                end_time: eDate.toISOString(),
+                color,
+                description: '',
+                meeting_link: meetingLink || undefined,
+            });
+        }
         onClose();
     };
 
     return (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-zinc-100 mb-4">Add Event</h3>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-zinc-100 mb-4">
+                    {eventToEdit ? 'Edit Event' : 'Add New Event'}
+                </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Event Title</label>
@@ -637,14 +802,13 @@ const AddEventModal: React.FC<{
                     </div>
                     <div className="flex justify-end gap-2 mt-6">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
                         <button
                             type="submit"
                             disabled={isCreatingMeeting}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isCreatingMeeting && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                            {isCreatingMeeting ? 'Creating...' : 'Save Event'}
+                            {isCreatingMeeting ? 'Creating...' : (eventToEdit ? 'Update Event' : 'Save Event')}
                         </button>
                     </div>
                 </form>
