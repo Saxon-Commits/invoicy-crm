@@ -5,6 +5,14 @@ import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, fo
 import { ChevronLeft, ChevronRight, MoreHorizontal, Clock, Plus, GripVertical, ChevronDown, Calendar as CalendarIcon, Video, X, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import { FEATURES } from '../config/features';
 
+const EVENT_COLORS: Record<string, string> = {
+    blue: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
+    green: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800',
+    red: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border border-red-200 dark:border-red-800',
+    purple: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 border border-purple-200 dark:border-purple-800',
+    amber: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800',
+};
+
 type View = 'month' | 'week' | 'day' | 'agenda';
 
 interface CalendarProps {
@@ -343,11 +351,18 @@ const EventSidePanel: React.FC<{
 }> = ({ event, onClose, onEdit, onDelete }) => {
     if (!event) return null;
 
+    const isGoogleEvent = event.user_id === 'google';
+
     return (
         <div className="absolute top-0 right-0 h-full w-80 bg-white dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800 shadow-xl z-20 flex flex-col transform transition-transform duration-300">
             <div className="p-4 border-b border-slate-100 dark:border-zinc-800 flex justify-between items-start">
                 <div>
-                    <span className={`inline-block w-3 h-3 rounded-full mb-2 bg-${event.color}-500`}></span>
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className={`inline-block w-3 h-3 rounded-full bg-${event.color}-500`}></span>
+                        {isGoogleEvent && (
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 border border-slate-200 dark:border-zinc-700 px-1.5 py-0.5 rounded">Google Event</span>
+                        )}
+                    </div>
                     <h2 className="text-lg font-bold text-slate-800 dark:text-white leading-tight">{event.title}</h2>
                 </div>
                 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
@@ -396,20 +411,28 @@ const EventSidePanel: React.FC<{
             </div>
 
             <div className="p-4 border-t border-slate-100 dark:border-zinc-800 flex gap-3">
-                <button
-                    onClick={onEdit}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 dark:border-zinc-700 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
-                >
-                    <Edit2 size={16} />
-                    Edit
-                </button>
-                <button
-                    onClick={() => onDelete(event.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium"
-                >
-                    <Trash2 size={16} />
-                    Delete
-                </button>
+                {!isGoogleEvent ? (
+                    <>
+                        <button
+                            onClick={onEdit}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 dark:border-zinc-700 rounded-lg text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors text-sm font-medium"
+                        >
+                            <Edit2 size={16} />
+                            Edit
+                        </button>
+                        <button
+                            onClick={() => onDelete(event.id)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-sm font-medium"
+                        >
+                            <Trash2 size={16} />
+                            Delete
+                        </button>
+                    </>
+                ) : (
+                    <div className="w-full text-center text-xs text-slate-400 py-2 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-100 dark:border-zinc-800">
+                        Read-only: Manage this event in Google Calendar
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -462,7 +485,7 @@ const MonthView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOv
                                             ev.stopPropagation();
                                             onEventClick && onEventClick(e);
                                         }}
-                                        className="text-xs p-1 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 truncate cursor-pointer hover:opacity-80 transition-opacity"
+                                        className={`text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 transition-opacity ${EVENT_COLORS[e.color] || EVENT_COLORS.blue}`}
                                     >
                                         {e.title}
                                     </div>
@@ -531,7 +554,7 @@ const WeekView: React.FC<any> = ({ currentDate, events, tasks, onDrop, onDragOve
                                                 ev.stopPropagation();
                                                 onEventClick && onEventClick(e);
                                             }}
-                                            className="text-[10px] p-1 rounded bg-blue-100/80 text-blue-900 dark:bg-blue-900/50 dark:text-blue-100 mb-1 leading-tight border border-blue-200 dark:border-blue-800 cursor-pointer hover:opacity-80 transition-opacity"
+                                            className={`text-[10px] p-1 rounded mb-1 leading-tight cursor-pointer hover:opacity-80 transition-opacity ${EVENT_COLORS[e.color] || EVENT_COLORS.blue}`}
                                         >
                                             {e.title}
                                         </div>
@@ -560,6 +583,7 @@ const AddEventModal: React.FC<{
     eventToEdit?: CalendarEvent | null;
 }> = ({ isOpen, onClose, onSave, onUpdate, initialDate, eventToEdit }) => {
     const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
     const [color, setColor] = useState('blue');
     const [addMeetLink, setAddMeetLink] = useState(false);
 
@@ -590,6 +614,7 @@ const AddEventModal: React.FC<{
         if (isOpen) {
             if (eventToEdit) {
                 setTitle(eventToEdit.title);
+                setDescription(eventToEdit.description || '');
                 setColor(eventToEdit.color || 'blue');
                 setAddMeetLink(!!eventToEdit.meeting_link);
 
@@ -626,6 +651,7 @@ const AddEventModal: React.FC<{
                 setStartDate(initialDate);
                 setEndDate(initialDate);
                 setTitle('');
+                setDescription('');
                 setColor('blue');
                 setAddMeetLink(false);
 
@@ -696,7 +722,7 @@ const AddEventModal: React.FC<{
                     startTime: s.toISOString(),
                     endTime: eDate.toISOString(),
                     withMeet: addMeetLink,
-                    description: '' // Can be expanded
+                    description: description
                 });
 
                 if (googleEvent.hangoutLink) {
@@ -718,6 +744,7 @@ const AddEventModal: React.FC<{
                 start_time: s.toISOString(),
                 end_time: eDate.toISOString(),
                 color,
+                description,
                 meeting_link: meetingLink || eventToEdit.meeting_link, // Keep existing if not new
             });
         } else {
@@ -726,7 +753,7 @@ const AddEventModal: React.FC<{
                 start_time: s.toISOString(),
                 end_time: eDate.toISOString(),
                 color,
-                description: '',
+                description,
                 meeting_link: meetingLink || undefined,
             });
         }
@@ -821,6 +848,16 @@ const AddEventModal: React.FC<{
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Description</label>
+                        <textarea
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            className="w-full p-2 border border-slate-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-slate-900 dark:text-white h-24 resize-none"
+                            placeholder="Add details about the event..."
+                        />
                     </div>
 
                     <div>
