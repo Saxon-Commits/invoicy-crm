@@ -156,6 +156,7 @@ export interface CalendarEvent {
   meeting_link?: string;
   created_at: string;
   description?: string;
+  google_event_id?: string;
 }
 
 // FIX: Added missing Task interface export.

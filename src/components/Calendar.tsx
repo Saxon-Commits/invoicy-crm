@@ -79,7 +79,25 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
         fetchGoogleEvents();
     }, [currentDate, view, isConnected, listEvents, refreshKey]);
 
-    const allEvents = useMemo(() => [...events, ...googleEvents], [events, googleEvents]);
+    const allEvents = useMemo(() => {
+        // Filter out google events that seem to be duplicates of local events (same title and time)
+        // This prevents "double vision" when an event is synced both ways
+        const uniqueGoogleEvents = googleEvents.filter(gEvent => {
+            const isDuplicate = events.some(localEvent => {
+                if (localEvent.title !== gEvent.title) return false;
+
+                // Strict deduplication by ID if available
+                if (localEvent.google_event_id && localEvent.google_event_id === gEvent.id) return true;
+
+                const t1 = new Date(localEvent.start_time).getTime();
+                const t2 = new Date(gEvent.start_time).getTime();
+                // 1 minute tolerance for slight time differences
+                return Math.abs(t1 - t2) < 60000;
+            });
+            return !isDuplicate;
+        });
+        return [...events, ...uniqueGoogleEvents];
+    }, [events, googleEvents]);
 
     // Drag and Drop State
     const [draggedTask, setDraggedTask] = useState<Task | null>(null);
@@ -739,6 +757,7 @@ const AddEventModal: React.FC<{
         eDate.setHours(end.h, end.m, 0, 0);
 
         let meetingLink = '';
+        let googleId: string | undefined = undefined;
 
         if (isConnected) {
             try {
@@ -756,6 +775,7 @@ const AddEventModal: React.FC<{
                 if (googleEvent.hangoutLink) {
                     meetingLink = googleEvent.hangoutLink;
                 }
+                googleId = googleEvent.id;
             } catch (err) {
                 console.error("Failed to sync with Google Calendar:", err);
                 // Don't block saving to local DB, just warn
@@ -783,6 +803,7 @@ const AddEventModal: React.FC<{
                 color,
                 description,
                 meeting_link: meetingLink || undefined,
+                google_event_id: googleId
             });
         }
         onClose();
