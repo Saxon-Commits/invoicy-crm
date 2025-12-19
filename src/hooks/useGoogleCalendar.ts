@@ -42,7 +42,46 @@ export const useGoogleCalendar = () => {
         }
     };
 
-    const createMeeting = useCallback(async (title: string, startTime: string, endTime: string) => {
+    const listEvents = useCallback(async (timeMin: string, timeMax: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session || !session.provider_token) return [];
+
+            const params = new URLSearchParams({
+                timeMin,
+                timeMax,
+                singleEvents: 'true',
+                orderBy: 'startTime',
+            });
+
+            const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?${params.toString()}`, {
+                headers: {
+                    'Authorization': `Bearer ${session.provider_token}`,
+                },
+            });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    // Token expired or invalid
+                    return [];
+                }
+                throw new Error('Failed to fetch Google Calendar events');
+            }
+
+            const data = await response.json();
+            return data.items || [];
+        } catch (err: any) {
+            console.error("Error fetching Google events:", err);
+            // Don't set global error for background fetch
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const createEvent = useCallback(async (eventData: { title: string, description?: string, startTime: string, endTime: string, withMeet?: boolean }) => {
         setLoading(true);
         setError(null);
         try {
@@ -51,19 +90,27 @@ export const useGoogleCalendar = () => {
                 throw new Error('No Google provider token found. Please reconnect your Google account.');
             }
 
-            const event = {
-                summary: title,
-                start: { dateTime: startTime },
-                end: { dateTime: endTime },
-                conferenceData: {
+            const event: any = {
+                summary: eventData.title,
+                description: eventData.description,
+                start: { dateTime: eventData.startTime },
+                end: { dateTime: eventData.endTime },
+            };
+
+            if (eventData.withMeet) {
+                event.conferenceData = {
                     createRequest: {
                         requestId: Math.random().toString(36).substring(7),
                         conferenceSolutionKey: { type: 'hangoutsMeet' },
                     },
-                },
-            };
+                };
+            }
 
-            const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', {
+            const url = eventData.withMeet
+                ? 'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1'
+                : 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session.provider_token}`,
@@ -74,11 +121,14 @@ export const useGoogleCalendar = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error?.message || 'Failed to create Google Meet event');
+                throw new Error(errorData.error?.message || 'Failed to create Google event');
             }
 
             const data = await response.json();
-            return data.hangoutLink; // Return the Google Meet link
+            return {
+                id: data.id,
+                hangoutLink: data.hangoutLink
+            };
         } catch (err: any) {
             setError(err.message);
             throw err;
@@ -89,7 +139,8 @@ export const useGoogleCalendar = () => {
 
     return {
         connectGoogle,
-        createMeeting,
+        createEvent,
+        listEvents,
         isConnected,
         loading,
         error,

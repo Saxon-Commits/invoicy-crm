@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { CalendarEvent, Task, Document } from '../types';
 import { useGoogleCalendar } from '../hooks/useGoogleCalendar';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay, addMonths, subMonths, addWeeks, subWeeks, isToday, getHours, setHours, setMinutes } from 'date-fns';
@@ -26,6 +26,51 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
     const [isEventModalOpen, setIsEventModalOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+    const [googleEvents, setGoogleEvents] = useState<CalendarEvent[]>([]);
+    const { listEvents, isConnected } = useGoogleCalendar();
+
+    // Fetch Google Events when view or date changes
+    useEffect(() => {
+        const fetchGoogleEvents = async () => {
+            if (!isConnected) {
+                setGoogleEvents([]);
+                return;
+            }
+
+            let start: Date, end: Date;
+            if (view === 'month') {
+                start = startOfMonth(currentDate);
+                end = endOfMonth(currentDate);
+            } else {
+                start = startOfWeek(currentDate);
+                end = endOfWeek(currentDate);
+            }
+
+            // Expand range slightly to handle boundary events
+            start = subWeeks(start, 1);
+            end = addWeeks(end, 1);
+
+            const events = await listEvents(start.toISOString(), end.toISOString());
+
+            const formattedEvents: CalendarEvent[] = events.map((e: any) => ({
+                id: e.id,
+                title: e.summary || '(No Title)',
+                start_time: e.start.dateTime || e.start.date, // Handle all-day events (date only)
+                end_time: e.end.dateTime || e.end.date,
+                color: 'red', // Distinguish Google Events with a specific color or mapped color
+                description: e.description,
+                meeting_link: e.hangoutLink || e.htmlLink,
+                user_id: 'google', // Placeholder
+                created_at: new Date().toISOString()
+            }));
+
+            setGoogleEvents(formattedEvents);
+        };
+
+        fetchGoogleEvents();
+    }, [currentDate, view, isConnected, listEvents]);
+
+    const allEvents = useMemo(() => [...events, ...googleEvents], [events, googleEvents]);
 
     // Drag and Drop State
     const [draggedTask, setDraggedTask] = useState<Task | null>(null);
@@ -153,7 +198,7 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                     {view === 'month' && (
                         <MonthView
                             currentDate={currentDate}
-                            events={events}
+                            events={allEvents}
                             tasks={tasks}
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
@@ -168,7 +213,7 @@ const Calendar: React.FC<CalendarProps> = ({ events, tasks, documents, editDocum
                     {view === 'week' && (
                         <WeekView
                             currentDate={currentDate}
-                            events={events}
+                            events={allEvents}
                             tasks={tasks}
                             onDrop={handleDrop}
                             onDragOver={handleDragOver}
@@ -519,7 +564,7 @@ const AddEventModal: React.FC<{
     const [addMeetLink, setAddMeetLink] = useState(false);
 
     // Google Calendar Integration
-    const { createMeeting, isConnected } = useGoogleCalendar();
+    const { createEvent, isConnected } = useGoogleCalendar();
     const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
 
     // Date Selection
@@ -641,13 +686,26 @@ const AddEventModal: React.FC<{
 
         let meetingLink = '';
 
-        if (addMeetLink && isConnected) {
+        if (isConnected) {
             try {
                 setIsCreatingMeeting(true);
-                meetingLink = await createMeeting(title, s.toISOString(), eDate.toISOString());
+                // Automatically sync to Google Calendar if connected
+                // If addMeetLink is true, it adds conference data
+                const googleEvent = await createEvent({
+                    title,
+                    startTime: s.toISOString(),
+                    endTime: eDate.toISOString(),
+                    withMeet: addMeetLink,
+                    description: '' // Can be expanded
+                });
+
+                if (googleEvent.hangoutLink) {
+                    meetingLink = googleEvent.hangoutLink;
+                }
             } catch (err) {
-                console.error("Failed to create meeting:", err);
-                alert("Failed to create Google Meet link. Event will be saved without it.");
+                console.error("Failed to sync with Google Calendar:", err);
+                // Don't block saving to local DB, just warn
+                alert("Failed to sync with Google Calendar. Event will be saved locally.");
             } finally {
                 setIsCreatingMeeting(false);
             }
