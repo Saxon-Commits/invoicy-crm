@@ -83,8 +83,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         className={`w-64 bg-slate-900 dark:bg-black p-4 flex-shrink-0 border-r border-slate-700 dark:border-zinc-800 flex flex-col fixed md:relative z-40 h-full transform transition-transform ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
       >
         <div className="flex items-center space-x-2 p-3 mb-6">
-          <div className="bg-primary-500 rounded-lg p-2 text-white">
-            <NavIcon path="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 019 9v.375M10.125 2.25A3.375 3.375 0 0113.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 013.375 3.375M9 15l2.25 2.25L15 12" />
+          <div className="rounded-lg p-0.5 bg-transparent shrink-0">
+            <img src="/logo.jpg" alt="Logo" className="w-12 h-12 object-contain rounded-xl" />
           </div>
           <h1 className="text-2xl font-bold text-white">InvoicyCRM</h1>
         </div>
@@ -116,15 +116,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span className="font-medium">Settings</span>
             </NavLink>
           </nav>
-          <div className="px-3 pb-2">
-            <NavLink
-              to="/privacy"
-              className="text-xs text-slate-400 hover:text-slate-200 block text-center py-2"
-              onClick={() => handleLinkClick()}
-            >
-              Privacy Policy
-            </NavLink>
-          </div>
           <div className="p-3 mb-2">
             <div className="flex items-center justify-between">
               <label
@@ -185,6 +176,20 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <div className="p-4 bg-slate-950 dark:bg-black/50 rounded-lg text-center">
             <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} Invoicy CRM</p>
+            <NavLink
+              to="/privacy"
+              className="text-xs text-slate-500 hover:text-slate-300 block py-1 mt-1 transition-colors"
+              onClick={() => handleLinkClick()}
+            >
+              Privacy Policy
+            </NavLink>
+            <NavLink
+              to="/terms"
+              className="text-xs text-slate-500 hover:text-slate-300 block py-1 transition-colors"
+              onClick={() => handleLinkClick()}
+            >
+              Terms of Service
+            </NavLink>
           </div>
         </div>
       </aside>

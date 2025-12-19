@@ -53,6 +53,9 @@ const AuthPage: React.FC = () => {
     <div className="flex items-center justify-center min-h-screen bg-slate-100 dark:bg-zinc-950 p-4">
       <div className="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-6">
+            <img src="/logo.jpg" alt="InvoicyCRM Logo" className="w-24 h-24 rounded-3xl shadow-lg" />
+          </div>
           <h1 className="text-3xl font-bold text-primary-600 dark:text-primary-400">InvoicyCRM</h1>
           <p className="text-slate-500 dark:text-zinc-400 mt-2">
             {isLoginView ? 'Welcome back! Please sign in.' : 'Create your account to get started.'}
@@ -111,8 +114,9 @@ const AuthPage: React.FC = () => {
         {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
         {message && <p className="mt-4 text-center text-sm text-green-500">{message}</p>}
 
-        <div className="mt-8 text-center border-t border-slate-100 dark:border-zinc-800 pt-4">
+        <div className="mt-8 text-center border-t border-slate-100 dark:border-zinc-800 pt-4 flex justify-center gap-4">
           <a href="/#/privacy" className="text-xs text-slate-400 hover:text-primary-500 transition-colors">Privacy Policy</a>
+          <a href="/#/terms" className="text-xs text-slate-400 hover:text-primary-500 transition-colors">Terms of Service</a>
         </div>
       </div>
     </div>
