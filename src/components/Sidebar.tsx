@@ -116,6 +116,15 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span className="font-medium">Settings</span>
             </NavLink>
           </nav>
+          <div className="px-3 pb-2">
+            <NavLink
+              to="/privacy"
+              className="text-xs text-slate-400 hover:text-slate-200 block text-center py-2"
+              onClick={() => handleLinkClick()}
+            >
+              Privacy Policy
+            </NavLink>
+          </div>
           <div className="p-3 mb-2">
             <div className="flex items-center justify-between">
               <label
@@ -175,8 +184,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
           <div className="p-4 bg-slate-950 dark:bg-black/50 rounded-lg text-center">
-            <p className="text-sm text-slate-400">© 2024 InvoicyCRM</p>
-            <p className="text-xs text-slate-500 mt-1">All rights reserved.</p>
+            <p className="text-sm text-slate-400">&copy; {new Date().getFullYear()} Invoicy CRM</p>
           </div>
         </div>
       </aside>

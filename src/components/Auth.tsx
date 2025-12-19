@@ -110,6 +110,10 @@ const AuthPage: React.FC = () => {
 
         {error && <p className="mt-4 text-center text-sm text-red-500">{error}</p>}
         {message && <p className="mt-4 text-center text-sm text-green-500">{message}</p>}
+
+        <div className="mt-8 text-center border-t border-slate-100 dark:border-zinc-800 pt-4">
+          <a href="/#/privacy" className="text-xs text-slate-400 hover:text-primary-500 transition-colors">Privacy Policy</a>
+        </div>
       </div>
     </div>
   );
