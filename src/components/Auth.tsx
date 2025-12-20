@@ -58,6 +58,9 @@ const AuthPage: React.FC = () => {
           </div>
           <h1 className="text-3xl font-bold text-primary-600 dark:text-primary-400">InvoicyCRM</h1>
           <p className="text-slate-500 dark:text-zinc-400 mt-2">
+            The complete CRM for freelance invoicing, client management, and scheduling.
+          </p>
+          <p className="text-slate-400 dark:text-zinc-500 text-sm mt-1 mb-4">
             {isLoginView ? 'Welcome back! Please sign in.' : 'Create your account to get started.'}
           </p>
         </div>
