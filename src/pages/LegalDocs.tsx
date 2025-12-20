@@ -35,8 +35,8 @@ const LegalDocs: React.FC = () => {
                         <button
                             onClick={() => setActiveTab('privacy')}
                             className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'privacy'
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
                                 }`}
                         >
                             Privacy Policy
@@ -44,8 +44,8 @@ const LegalDocs: React.FC = () => {
                         <button
                             onClick={() => setActiveTab('terms')}
                             className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'terms'
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
                                 }`}
                         >
                             Terms of Service
@@ -165,7 +165,7 @@ const LegalDocs: React.FC = () => {
                                 if you have any questions about these Terms or our Privacy Policy, please contact us at:
                             </p>
                             <div className="mt-4 text-slate-800 dark:text-zinc-200 font-medium">
-                                support@invoicy-crm.com
+                                admin@getsaxon.dev
                             </div>
                         </section>
 
@@ -177,8 +177,8 @@ const LegalDocs: React.FC = () => {
                         </p>
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 
