@@ -204,12 +204,47 @@ export const useGoogleCalendar = () => {
         }
     }, []);
 
+    const disconnectGoogle = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("No authenticated user found.");
+
+            // Find the Google identity
+            const googleIdentity = user.identities?.find((id) => id.provider === 'google');
+            if (!googleIdentity) {
+                // Already disconnected logic or error
+                setIsConnected(false);
+                return;
+            }
+
+            // SAFETY CHECK: Prevent lockout
+            // Check if there are other identities (like 'email')
+            const hasOtherIdentities = user.identities?.some((id) => id.provider !== 'google');
+            if (!hasOtherIdentities) {
+                throw new Error("Cannot disconnect Google Account because it is your only sign-in method. Please set an email/password first to ensure you can still access your account.");
+            }
+
+            const { error } = await supabase.auth.unlinkIdentity(googleIdentity);
+            if (error) throw error;
+
+            setIsConnected(false);
+        } catch (err: any) {
+            setError(err.message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return {
         connectGoogle,
         createEvent,
         listEvents,
         updateEvent,
         deleteEvent,
+        disconnectGoogle,
         isConnected,
         loading,
         error,

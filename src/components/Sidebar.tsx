@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { FEATURES } from '../config/features';
+import { supabase } from '../supabaseClient';
 
 const NavIcon: React.FC<{ path: string }> = ({ path }) => (
   <svg
@@ -190,6 +191,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             >
               Terms of Service
             </NavLink>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+              }}
+              className="text-xs text-red-400 hover:text-red-300 block w-full py-1 mt-2 transition-colors border-t border-slate-800 dark:border-zinc-800 pt-2"
+            >
+              Log Out
+            </button>
           </div>
         </div>
       </aside>

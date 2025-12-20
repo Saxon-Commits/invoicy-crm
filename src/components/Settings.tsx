@@ -291,7 +291,7 @@ const Settings: React.FC<SettingsProps> = ({
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
-  const { connectGoogle, loading: googleLoading, error: googleError, isConnected } = useGoogleCalendar();
+  const { connectGoogle, disconnectGoogle, loading: googleLoading, error: googleError, isConnected } = useGoogleCalendar();
 
   // Check Stripe account status on component load
   useEffect(() => {
@@ -670,16 +670,33 @@ const Settings: React.FC<SettingsProps> = ({
                   {isConnected && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>}
                 </div>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">Sync events and create Google Meet links automatically.</p>
-                <button
-                  onClick={connectGoogle}
-                  disabled={googleLoading}
-                  className={`w-full py-1.5 text-xs font-semibold rounded-md border transition-colors ${isConnected
-                    ? 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700'
-                    : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700'
-                    }`}
-                >
-                  {googleLoading ? 'Connecting...' : isConnected ? 'Reconnect Calendar' : 'Connect Calendar'}
-                </button>
+
+                {isConnected ? (
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to disconnect your Google Calendar?')) {
+                        try {
+                          await disconnectGoogle();
+                        } catch (e: any) {
+                          alert(e.message);
+                        }
+                      }
+                    }}
+                    disabled={googleLoading}
+                    className="w-full py-1.5 text-xs font-semibold rounded-md border border-red-200 dark:border-red-900 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    {googleLoading ? 'Disconnecting...' : 'Disconnect Calendar'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={connectGoogle}
+                    disabled={googleLoading}
+                    className="w-full py-1.5 text-xs font-semibold rounded-md border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+                  >
+                    {googleLoading ? 'Connecting...' : 'Connect Calendar'}
+                  </button>
+                )}
+
                 {googleError && <p className="text-red-500 text-[10px] mt-2">{googleError}</p>}
               </div>
             </div>
