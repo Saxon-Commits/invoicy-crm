@@ -18,7 +18,9 @@ export const useGoogleCalendar = () => {
         // We can't just check identity because they might have signed in with only 'email' scope.
         // We must verify we actually have access to the calendar API.
         try {
-            const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1', {
+            // UPDATED: 'calendar.events' scope allows listing events on 'primary', but NOT listing all calendars.
+            // So we check connection by trying to list 1 event from the primary calendar.
+            const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=1', {
                 headers: {
                     'Authorization': `Bearer ${session.provider_token}`,
                 },
