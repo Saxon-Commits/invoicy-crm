@@ -26,13 +26,25 @@ export const useGoogleCalendar = () => {
 
             if (response.ok) {
                 setIsConnected(true);
+                setError(null);
             } else {
                 // If 403/401, it means we have the identity but not the scope (or token expired)
                 setIsConnected(false);
+                const errData = await response.json();
+                console.error("Google Calendar API Error:", errData);
+
+                if (response.status === 403) {
+                    setError("Access denied. Ensure your email is in the 'Test Users' list in Google Cloud Console.");
+                } else if (response.status === 401) {
+                    setError("Session expired. Please try connecting again.");
+                } else {
+                    setError(`Connection failed: ${errData.error?.message || 'Unknown error'}`);
+                }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error verifying calendar scope:", error);
             setIsConnected(false);
+            setError(error.message);
         }
     }, []);
 
