@@ -7,10 +7,32 @@ export const useGoogleCalendar = () => {
     const [isConnected, setIsConnected] = useState(false);
 
     // Check if user is connected to Google
+    // Check if user is connected to Google AND has calendar access
     const checkConnection = useCallback(async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.identities?.some((identity) => identity.provider === 'google')) {
-            setIsConnected(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.provider_token) {
+            setIsConnected(false);
+            return;
+        }
+
+        // We can't just check identity because they might have signed in with only 'email' scope.
+        // We must verify we actually have access to the calendar API.
+        try {
+            const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=1', {
+                headers: {
+                    'Authorization': `Bearer ${session.provider_token}`,
+                },
+            });
+
+            if (response.ok) {
+                setIsConnected(true);
+            } else {
+                // If 403/401, it means we have the identity but not the scope (or token expired)
+                setIsConnected(false);
+            }
+        } catch (error) {
+            console.error("Error verifying calendar scope:", error);
+            setIsConnected(false);
         }
     }, []);
 
