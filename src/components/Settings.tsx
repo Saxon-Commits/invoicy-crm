@@ -261,6 +261,116 @@ const TemplateModal: React.FC<TemplateModalProps> = ({
 };
 // --- End of TemplateModal ---
 
+// --- DeleteConfirmationModal ---
+interface DeleteConfirmationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+}
+
+const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isLoading,
+}) => {
+  const [confirmationText, setConfirmationText] = useState('');
+  const [step, setStep] = useState<1 | 2>(1);
+
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setConfirmationText('');
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl w-full max-w-md border border-red-100 dark:border-red-900/30"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4 text-red-600 dark:text-red-500">
+            <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold">Delete Account</h2>
+          </div>
+
+          <div className="space-y-4">
+            {step === 1 ? (
+              <>
+                <p className="text-slate-600 dark:text-zinc-300">
+                  Are you absolutely sure? This action will:
+                </p>
+                <ul className="list-disc list-inside text-sm text-slate-500 dark:text-zinc-400 space-y-1 ml-1">
+                  <li>Permanently delete your account</li>
+                  <li>Remove all your invoices, quotes, and customers</li>
+                  <li>Unlink your calendar and integrations</li>
+                  <li><strong className="text-red-600 dark:text-red-400">This cannot be undone.</strong></li>
+                </ul>
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={onClose}
+                    className="flex-1 px-4 py-2 rounded-lg font-semibold bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => setStep(2)}
+                    className="flex-1 px-4 py-2 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors"
+                  >
+                    Continue
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-slate-600 dark:text-zinc-300 text-sm">
+                  To confirm deletion, please type <strong className="select-all">DELETE</strong> below:
+                </p>
+                <input
+                  type="text"
+                  value={confirmationText}
+                  onChange={(e) => setConfirmationText(e.target.value)}
+                  placeholder="Type DELETE"
+                  className="w-full p-2 border-2 border-slate-200 dark:border-zinc-700 rounded-lg focus:border-red-500 focus:outline-none dark:bg-zinc-900 font-mono text-center uppercase tracking-widest"
+                  autoFocus
+                />
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setStep(1)}
+                    className="flex-1 px-4 py-2 rounded-lg font-semibold bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={onConfirm}
+                    disabled={confirmationText !== 'DELETE' || isLoading}
+                    className="flex-1 px-4 py-2 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? 'Deleting...' : 'Delete Account'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 
 interface SettingsProps {
   companyInfo: CompanyInfo;
@@ -289,6 +399,7 @@ const Settings: React.FC<SettingsProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
   const { connectGoogle, disconnectGoogle, loading: googleLoading, error: googleError, isConnected } = useGoogleCalendar();
@@ -704,6 +815,29 @@ const Settings: React.FC<SettingsProps> = ({
         </div>
       </div>
 
+      {/* Danger Zone - Full Width */}
+      <div className="bg-red-50 dark:bg-red-950/20 rounded-xl shadow-sm border border-red-200 dark:border-red-900/50 overflow-hidden mt-8">
+        <div className="px-6 py-4 border-b border-red-100 dark:border-red-900/30 bg-red-50 dark:bg-red-950/30">
+          <h2 className="font-semibold text-red-700 dark:text-red-400">Danger Zone</h2>
+        </div>
+        <div className="p-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="font-medium text-red-700 dark:text-red-400 mb-1">Delete Account</h3>
+              <p className="text-sm text-red-600 dark:text-red-300">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+            </div>
+            <button
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="py-2 px-4 whitespace-nowrap rounded-md border border-red-300 dark:border-red-800 bg-white dark:bg-red-950/20 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/40 font-semibold text-sm transition-colors"
+            >
+              Delete Personal Account & Data
+            </button>
+          </div>
+        </div>
+      </div>
+
       <TemplateModal
         isOpen={isTemplateModalOpen}
         onClose={() => setIsTemplateModalOpen(false)}
@@ -711,7 +845,25 @@ const Settings: React.FC<SettingsProps> = ({
         onDelete={deleteEmailTemplate}
         template={editingTemplate}
       />
+
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        isLoading={stripeLoading}
+        onConfirm={async () => {
+          setStripeLoading(true);
+          try {
+            const { error } = await supabase.rpc('delete_user');
+            if (error) throw error;
+            await supabase.auth.signOut();
+          } catch (err: any) {
+            alert('Failed to delete account: ' + err.message);
+            setStripeLoading(false);
+          }
+        }}
+      />
     </div >
+
   );
 };
 

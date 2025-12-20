@@ -121,20 +121,48 @@ const AuthPage: React.FC = () => {
 
         <div className="flex border border-slate-200 dark:border-zinc-700 rounded-lg p-1 mb-6">
           <button
-            onClick={() => setIsLoginView(true)}
+            onClick={() => {
+              setIsLoginView(true);
+              setMessage(null);
+              setError(null);
+            }}
             className={`w-1/2 p-2 rounded-md font-semibold transition-colors ${isLoginView ? 'bg-primary-500 text-white shadow' : 'text-slate-500 dark:text-zinc-400'}`}
           >
             Sign In
           </button>
           <button
-            onClick={() => setIsLoginView(false)}
+            onClick={() => {
+              setIsLoginView(false);
+              setMessage(null);
+              setError(null);
+            }}
             className={`w-1/2 p-2 rounded-md font-semibold transition-colors ${!isLoginView ? 'bg-primary-500 text-white shadow' : 'text-slate-500 dark:text-zinc-400'}`}
           >
             Sign Up
           </button>
         </div>
 
-        <form onSubmit={handleAuthAction} className="space-y-4">
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          // Reset Password Flow
+          if (email && isLoginView && !password) {
+            setLoading(true);
+            setError(null);
+            try {
+              const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: `${window.location.origin}/#/update-password`,
+              });
+              if (error) throw error;
+              setMessage('Password reset email sent! Check your inbox.');
+            } catch (err: any) {
+              setError(err.message);
+            } finally {
+              setLoading(false);
+            }
+            return;
+          }
+          handleAuthAction(e);
+        }} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-600 dark:text-zinc-300 mb-1">
               Email
@@ -155,9 +183,40 @@ const AuthPage: React.FC = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
+              required={isLoginView && !message} // Not required if just sending reset email, but UI might be tricky.
+              // Actually, let's keep it clean.
               className="w-full p-3 border rounded-lg bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500"
             />
+            {isLoginView && (
+              <div className="text-right mt-1">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!email) {
+                      setError("Please enter your email address first.");
+                      return;
+                    }
+                    setLoading(true);
+                    setError(null);
+                    setMessage(null);
+                    try {
+                      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                        redirectTo: `${window.location.origin}/#/settings`, // Direct them to settings to change it after login, or dedicated page
+                      });
+                      if (error) throw error;
+                      setMessage('Password reset link sent! Check your email.');
+                    } catch (err: any) {
+                      setError(err.message);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            )}
           </div>
           <button
             type="submit"
