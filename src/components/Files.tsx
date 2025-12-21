@@ -237,7 +237,7 @@ const Files: React.FC<FilesProps> = ({ documents, companyInfo, editDocument, upd
                                     : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
                                     }`}
                             >
-                                {filter}s
+                                {filter === 'All' ? 'All' : `${filter}s`}
                             </button>
                         ))}
                     </div>
