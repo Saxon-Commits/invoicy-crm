@@ -24,6 +24,8 @@ import CustomerDetail from './components/CustomerDetail';
 import Files from './components/Files';
 // import { DocumentsPage } from './pages/DocumentsPage';
 import CustomerPortal from './pages/CustomerPortal';
+import ClientPortal from './pages/ClientPortal';
+import DocumentDetail from './pages/DocumentDetail';
 import LegalDocs from './pages/LegalDocs';
 import AuthPage from './components/Auth';
 import { useAuth } from './AuthContext';
@@ -159,6 +161,11 @@ const App: React.FC = () => {
   };
 
   const handleEditDocument = (doc: Document) => {
+    // Navigate to the View page first
+    navigate(`/documents/${doc.id}`);
+  };
+
+  const handleTrulyEditDocument = (doc: Document) => {
     setDocumentToEdit(doc);
     setIsSidebarVisible(true);
     navigate('/editor');
@@ -439,7 +446,17 @@ const App: React.FC = () => {
                   />
                 }
               />
-              <Route path="/p/:id" element={<CustomerPortal />} />
+              <Route path="/p/:id" element={<ClientPortal />} />
+              <Route
+                path="/documents/:id"
+                element={
+                  <DocumentDetail
+                    documents={documents}
+                    companyInfo={companyInfo}
+                    onEdit={handleTrulyEditDocument}
+                  />
+                }
+              />
             </Routes>
           </main>
 
