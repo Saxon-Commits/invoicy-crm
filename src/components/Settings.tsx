@@ -402,7 +402,7 @@ const Settings: React.FC<SettingsProps> = ({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [stripeLoading, setStripeLoading] = useState(false);
-  const { connectGoogle, disconnectGoogle, loading: googleLoading, error: googleError, isConnected } = useGoogleCalendar();
+  const { connectGoogle, disconnectGoogle, revokeGooglePermissions, loading: googleLoading, error: googleError, isConnected } = useGoogleCalendar();
 
   // Check Stripe account status on component load
   useEffect(() => {
@@ -807,6 +807,24 @@ const Settings: React.FC<SettingsProps> = ({
                     {googleLoading ? 'Connecting...' : 'Connect Calendar'}
                   </button>
                 )}
+
+                <div className="mt-3 text-center pt-2 border-t border-slate-100 dark:border-zinc-800">
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Reset Permissions? This forces Google to forget your app so you can re-consent (Video Recording).')) {
+                        try {
+                          await revokeGooglePermissions();
+                          alert("Permissions revoked! Now try connecting again.");
+                        } catch (e: any) {
+                          alert(e.message);
+                        }
+                      }
+                    }}
+                    className="text-xs text-slate-400 hover:text-red-500 underline"
+                  >
+                    Troubleshoot: Force Reset Permissions
+                  </button>
+                </div>
 
                 {googleError && <p className="text-red-500 text-[10px] mt-2">{googleError}</p>}
               </div>

@@ -274,6 +274,39 @@ export const useGoogleCalendar = () => {
         }
     };
 
+    const revokeGooglePermissions = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.provider_token) {
+                throw new Error("No Google token found to revoke.");
+            }
+
+            // Hit Google's Revoke Endpoint
+            try {
+                await fetch('https://oauth2.googleapis.com/revoke', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `token=${session.provider_token}`,
+                });
+            } catch (e) {
+                console.warn("Revoke fetch error (likely CORS, but request might have succeeded):", e);
+            }
+
+            // Force local disconnect state
+            setIsConnected(false);
+            return true;
+        } catch (err: any) {
+            setError(err.message);
+            throw err;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return {
         connectGoogle,
         createEvent,
@@ -281,6 +314,7 @@ export const useGoogleCalendar = () => {
         updateEvent,
         deleteEvent,
         disconnectGoogle,
+        revokeGooglePermissions,
         isConnected,
         loading,
         error,
