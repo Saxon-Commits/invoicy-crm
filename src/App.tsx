@@ -262,10 +262,18 @@ const App: React.FC = () => {
     );
   }
 
-  const isEditorPage =
-    location.pathname.includes('/editor');
-
+  const isEditorPage = location.pathname.includes('/editor');
+  const isGuestPage = location.pathname.startsWith('/p/');
   const useHeaderNav = profile?.navigation_layout === 'header';
+
+  // If on Guest Page, render cleanly without Shell
+  if (isGuestPage) {
+    return (
+      <Routes>
+        <Route path="/p/:id" element={<ClientPortal />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="h-screen bg-slate-100 dark:bg-zinc-950 relative flex flex-col">

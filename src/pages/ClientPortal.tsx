@@ -64,15 +64,33 @@ const ClientPortal: React.FC = () => {
         if (!data) return;
 
         setSendingMessage(true);
-        // Placeholder for email RPC. 
-        // Since we don't have the RPC yet, we'll simulate.
-        // In a real implementation: await supabase.functions.invoke('send-client-message', { ... })
+        try {
+            // Get email address using FormData
+            const formData = new FormData(e.target as HTMLFormElement);
+            const senderEmail = formData.get('email') as string;
 
-        setTimeout(() => {
-            setSendingMessage(false);
+            if (!senderEmail) throw new Error("Email is required");
+
+            const { error: fnError } = await supabase.functions.invoke('send-client-message', {
+                body: {
+                    doc_id: id,
+                    sender_email: senderEmail,
+                    message: message
+                }
+            });
+
+            if (fnError) throw fnError;
+
             setMessageSent(true);
             setMessage('');
-        }, 1000);
+            setTimeout(() => setMessageSent(false), 5000); // Reset success message after 5s
+
+        } catch (err: any) {
+            console.error("Error sending message:", err);
+            alert("Failed to send message: " + (err.message || "Unknown error"));
+        } finally {
+            setSendingMessage(false);
+        }
     };
 
     if (loading) {
@@ -198,6 +216,7 @@ const ClientPortal: React.FC = () => {
                                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Your Email</label>
                                         <input
                                             type="email"
+                                            name="email"
                                             required
                                             className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                                             placeholder="Enter your email"

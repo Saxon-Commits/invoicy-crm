@@ -641,6 +641,18 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({ customers, addDocument,
                                                 <span>Tax (%):</span>
                                                 <input type="number" value={doc.tax} onChange={e => setDoc(p => ({ ...p, tax: parseFloat(e.target.value) || 0 }))} className="w-20 p-1 border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700 text-right" />
                                             </div>
+
+                                            <div className="flex flex-col gap-1 pt-2">
+                                                <label className="text-xs font-medium text-slate-500 dark:text-zinc-400">Stripe Payment Link (Optional)</label>
+                                                <input
+                                                    type="url"
+                                                    value={doc.stripe_payment_link || ''}
+                                                    onChange={e => setDoc(p => ({ ...p, stripe_payment_link: e.target.value }))}
+                                                    placeholder="https://buy.stripe.com/..."
+                                                    className="w-full p-2 text-sm border rounded-md bg-slate-50 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700"
+                                                />
+                                            </div>
+
                                             <div className="flex justify-between font-bold text-lg border-t pt-2 border-slate-300 dark:border-zinc-700"><span>Total:</span><span>{doc.total.toFixed(2)}</span></div>
 
                                             {/* Deposit Section */}

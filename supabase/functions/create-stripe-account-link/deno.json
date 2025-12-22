@@ -1,0 +1,11 @@
+{
+    "permissions": {
+        "env": [
+            "STRIPE_API_KEY",
+            "SITE_URL",
+            "SUPABASE_URL",
+            "SUPABASE_ANON_KEY",
+            "SUPABASE_SERVICE_ROLE_KEY"
+        ]
+    }
+}

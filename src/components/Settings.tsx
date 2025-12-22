@@ -413,19 +413,11 @@ const Settings: React.FC<SettingsProps> = ({
           const { data: { session } } = await supabase.auth.getSession();
           if (!session) return;
 
-          const response = await fetch('/api/check-stripe-account-status', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`
-            }
-          });
+          const { data, error } = await supabase.functions.invoke('check-stripe-account-status');
 
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data.error || 'Failed to check Stripe status');
-          }
+          if (error) throw error;
 
-          if (data.setupComplete) {
+          if (data && data.setupComplete) {
             await supabase
               .from('profiles')
               .update({ stripe_account_setup_complete: true })
@@ -524,24 +516,21 @@ const Settings: React.FC<SettingsProps> = ({
         throw new Error("User not logged in.");
       }
 
-      const response = await fetch('/api/create-stripe-account-link', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
-      });
+      const { data, error } = await supabase.functions.invoke('create-stripe-account-link');
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create Stripe link');
+      if (error) {
+        // invoke returns a simple error object, sometimes we need to dig into the response body if it was parsed
+        // But the Supabase client handles 401s and other errors by wrapping them.
+        console.error("Function Error:", error);
+        throw error;
       }
 
-      if (data.url) {
-        window.location.href = data.url;
+      if (data && data.url) {
+        window.open(data.url, '_blank');
       }
     } catch (error: any) {
       console.error('Error connecting to Stripe:', error);
-      alert(`Could not connect to Stripe: ${error.message}`);
+      alert(`Could not connect to Stripe: ${error.message || 'Unknown error'}`);
     } finally {
       setStripeLoading(false);
     }

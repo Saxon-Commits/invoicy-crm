@@ -27,6 +27,45 @@ export const useDocuments = (profile: Profile | null) => {
         }
     }, [session]);
 
+    const ensurePaymentLink = async (doc: Document): Promise<Document> => {
+        if (
+            doc.type === DocumentType.Invoice &&
+            !doc.stripe_payment_link && // Only if missing
+            profile?.stripe_account_id &&
+            profile.stripe_account_setup_complete
+        ) {
+            try {
+                console.log('Attempting to generate Stripe Payment Link...');
+                const { data: functionData, error: functionError } = await supabase.functions.invoke(
+                    'create-payment-link',
+                    {
+                        body: { invoice: doc, stripe_account_id: profile.stripe_account_id },
+                    }
+                );
+
+                if (functionError) throw functionError;
+                if (functionData.error) throw new Error(functionData.error);
+
+                if (functionData.paymentLinkUrl) {
+                    console.log('Payment Link Generated:', functionData.paymentLinkUrl);
+                    // Update document in DB with new link
+                    const { data: updatedDoc, error: updateError } = await supabase
+                        .from('documents')
+                        .update({ stripe_payment_link: functionData.paymentLinkUrl })
+                        .eq('id', doc.id)
+                        .select('*, customer:customers(*)')
+                        .single();
+
+                    if (updateError) throw updateError;
+                    return updatedDoc as Document;
+                }
+            } catch (linkError: any) {
+                console.error('Error creating payment link:', linkError);
+            }
+        }
+        return doc;
+    };
+
     const addDocument = async (doc: NewDocumentData) => {
         if (!session || !doc.customer) return;
 
@@ -66,33 +105,8 @@ export const useDocuments = (profile: Profile | null) => {
 
             let createdDoc = data as Document;
 
-            // Payment Link Logic
-            if (
-                createdDoc &&
-                doc.type === DocumentType.Invoice &&
-                profile?.stripe_account_id &&
-                profile.stripe_account_setup_complete
-            ) {
-                try {
-                    const { data: functionData, error: functionError } = await supabase.functions.invoke(
-                        'create-payment-link',
-                        {
-                            body: { invoice: createdDoc, stripe_account_id: profile.stripe_account_id },
-                        }
-                    );
-
-                    if (functionError) throw functionError;
-                    if (functionData.error) throw new Error(functionData.error);
-
-                    if (functionData.paymentLinkUrl) {
-                        createdDoc = { ...createdDoc, stripe_payment_link: functionData.paymentLinkUrl };
-                    }
-                } catch (linkError: any) {
-                    console.error('Error creating payment link:', linkError);
-                    // We don't throw here, just return the doc without the link but maybe with a warning?
-                    // For now, we just log it. The UI can handle the missing link.
-                }
-            }
+            // Try to generate link immediately
+            createdDoc = await ensurePaymentLink(createdDoc);
 
             setDocuments((prev) => [createdDoc, ...prev]);
             return createdDoc;
@@ -105,7 +119,7 @@ export const useDocuments = (profile: Profile | null) => {
     const updateDocument = async (updatedDoc: Document) => {
         try {
             const { customer, ...docData } = updatedDoc;
-            const { data, error } = await supabase
+            let { data, error } = await supabase
                 .from('documents')
                 .update(docData)
                 .eq('id', updatedDoc.id)
@@ -114,7 +128,11 @@ export const useDocuments = (profile: Profile | null) => {
 
             if (error) throw error;
             if (data) {
-                const newDoc = data as Document;
+                let newDoc = data as Document;
+
+                // Try to generate link if missing and eligible
+                newDoc = await ensurePaymentLink(newDoc);
+
                 setDocuments((prev) => prev.map((d) => (d.id === newDoc.id ? newDoc : d)));
                 return newDoc;
             }
