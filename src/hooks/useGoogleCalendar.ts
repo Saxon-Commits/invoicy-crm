@@ -66,7 +66,7 @@ export const useGoogleCalendar = () => {
                     redirectTo: window.location.origin, // Redirect to root (HashRouter handles the rest)
                     queryParams: {
                         access_type: 'offline',
-                        prompt: 'consent',
+                        prompt: 'select_account consent',
                     },
                 },
             });
